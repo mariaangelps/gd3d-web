@@ -2,19 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Gradient Descent — Mountain + Stop-Motion</title>
+  <title>Gradient Descent + Simulated Annealing — GitHub Pages Demo</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     html, body { margin:0; height:100%; background:#0b0b0f; color:#fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
     #wrap { display:grid; grid-template-columns: 360px 1fr; height:100%; }
-
     #ui {
       padding:16px;
       background: rgba(20,20,28,0.92);
       border-right: 1px solid rgba(255,255,255,0.08);
       overflow:auto;
     }
-
     h1 { font-size:18px; margin:0 0 10px; }
     .card {
       background: rgba(255,255,255,0.06);
@@ -25,7 +23,6 @@
     }
     .label { font-weight:700; margin-bottom: 6px; display:flex; justify-content:space-between; gap:12px; }
     input[type="range"] { width:100%; }
-
     .btnRow { display:flex; gap:10px; }
     button {
       flex:1;
@@ -38,11 +35,9 @@
       font-weight:700;
     }
     button:hover { background: rgba(255,255,255,0.12); }
-
     .modeRow { display:flex; gap:10px; }
     .modeBtn { flex:1; }
     .modeBtn.active { outline: 2px solid rgba(120,200,255,0.8); }
-
     #view { position:relative; overflow:hidden; }
     #hud {
       position:absolute;
@@ -54,14 +49,14 @@
       font-size: 14px;
       pointer-events:none;
       z-index: 5;
+      max-width: 60ch;
+      line-height: 1.25;
     }
     .tiny { opacity:0.8; font-size:12px; }
 
-    /* Right side layouts */
     #mountainView, #lineView { position:absolute; inset:0; }
     #lineView { display:none; padding: 16px; box-sizing:border-box; }
 
-    /* Stop-motion single panel */
     #linePanel {
       height: calc(100% - 12px);
       background: rgba(255,255,255,0.04);
@@ -81,13 +76,23 @@
     canvas.pcanvas { width:100%; height:100%; display:block; }
     .panelBody { flex:1; }
 
+    .pill {
+      display:inline-block;
+      padding:2px 8px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      font-size: 12px;
+      opacity: 0.92;
+      margin-left: 6px;
+    }
   </style>
 </head>
 
 <body>
 <div id="wrap">
   <div id="ui">
-    <h1>🎯 Gradient Descent</h1>
+    <h1>🎯 Gradient Descent + Annealing</h1>
 
     <div class="card">
       <div class="label"><span>Mode</span><span class="tiny">switch views</span></div>
@@ -96,8 +101,8 @@
         <button id="btnLine" class="modeBtn">📸 Stop-Motion Mode</button>
       </div>
       <div class="tiny" style="margin-top:10px;">
-        Mountain = 3D surface + controls.<br/>
-        Stop-Motion = “photo frames” (zoom-in as time increases).
+        <b>Mountain</b> = 3D surface + controls + click-to-start.<br/>
+        <b>Stop-Motion</b> = “photo frames” zooming in per step.
       </div>
     </div>
 
@@ -105,11 +110,33 @@
     <div id="controlsMountain">
       <div class="card">
         <div class="label">
-          <span>🌀 Noise (Jitter)</span>
-          <span id="noiseVal">0.030</span>
+          <span>🌡️ Temperature (T0)</span>
+          <span id="tempVal">0.250</span>
         </div>
-        <input id="noise" type="range" min="0" max="0.12" step="0.001" value="0.03" />
-        <div class="tiny">More noise = more random movement.</div>
+        <input id="temp" type="range" min="0" max="1.0" step="0.001" value="0.25" />
+        <div class="tiny">
+          Simulated annealing: higher T accepts uphill moves more often.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>❄️ Cooling (alpha)</span>
+          <span id="coolVal">0.985</span>
+        </div>
+        <input id="cool" type="range" min="0.90" max="0.999" step="0.001" value="0.985" />
+        <div class="tiny">
+          T(t) = T0 · alpha^t. Closer to 1 = cool slower.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>🌀 Jitter (proposal noise)</span>
+          <span id="noiseVal">0.020</span>
+        </div>
+        <input id="noise" type="range" min="0" max="0.12" step="0.001" value="0.02" />
+        <div class="tiny">Adds randomness to the proposal step (still uses annealing acceptance).</div>
       </div>
 
       <div class="card">
@@ -119,6 +146,60 @@
         </div>
         <input id="lr" type="range" min="0.005" max="0.09" step="0.001" value="0.04" />
         <div class="tiny">Bigger step = faster, but can overshoot.</div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>🧊 Smoothness</span>
+          <span id="smoothVal">0.70</span>
+        </div>
+        <input id="smooth" type="range" min="0" max="1" step="0.01" value="0.70" />
+        <div class="tiny">
+          Controls fBm octaves & frequency (smooth ↔ rough). (“Brownian field” vibe)
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>🎛️ Noise Amplitude</span>
+          <span id="ampVal">0.60</span>
+        </div>
+        <input id="amp" type="range" min="0" max="1.5" step="0.01" value="0.60" />
+        <div class="tiny">How “bumpy” the landscape is.</div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>🎲 Seed</span>
+          <span id="seedVal">1337</span>
+        </div>
+        <input id="seed" type="range" min="1" max="9999" step="1" value="1337" />
+        <div class="btnRow" style="margin-top:10px;">
+          <button id="newSeed">🎲 New random</button>
+          <button id="regen">🧱 Rebuild surface</button>
+        </div>
+        <div class="tiny" style="margin-top:8px;">
+          Seed changes the Brownian/fBm field (new function).
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>📍 Start X/Z</span>
+          <span class="tiny">or click surface</span>
+        </div>
+        <div class="tiny">Click on the 3D surface to place start. Or use sliders:</div>
+        <div style="margin-top:10px;">
+          <div class="label"><span>X</span><span id="sxVal">2.600</span></div>
+          <input id="sx" type="range" min="-3.2" max="3.2" step="0.001" value="2.6" />
+        </div>
+        <div style="margin-top:10px;">
+          <div class="label"><span>Z</span><span id="szVal">1.900</span></div>
+          <input id="sz" type="range" min="-3.2" max="3.2" step="0.001" value="1.9" />
+        </div>
+        <div class="tiny" style="margin-top:8px;">
+          Different starts → local minima vs global minima demo.
+        </div>
       </div>
 
       <div class="card">
@@ -133,21 +214,30 @@
       <div class="card">
         <div class="btnRow">
           <button id="play">▶️ Play</button>
-          <button id="reset">🔁 Reset</button>
+          <button id="reset">🔁 Reset Run</button>
         </div>
         <div class="tiny" style="margin-top:8px;">
-          “The ball wants to reach the lowest point 🏆”
+          Tip: use Temperature + Cooling to escape local minima early.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label"><span>🏁 Local vs 🏆 Global</span><span id="gapVal" class="pill">gap —</span></div>
+        <div class="tiny" id="optReadout">
+          Current: —<br/>
+          Global min: —<br/>
+          Final: —
         </div>
       </div>
 
       <div class="card">
         <div class="label"><span>📈 Height vs Time</span><span id="hVal">—</span></div>
         <canvas id="curve" width="320" height="140"></canvas>
-        <div class="tiny">Lower is better. The dot follows the scrubber.</div>
+        <div class="tiny">Lower is better. Dot follows the scrubber.</div>
       </div>
     </div>
 
-    <!-- Stop-motion controls (ONLY scrub) -->
+    <!-- Stop-motion controls -->
     <div id="controlsLine" style="display:none;">
       <div class="card">
         <div class="label"><span>📸 Frame (scrub)</span><span id="t2Val">0</span></div>
@@ -157,10 +247,9 @@
           Zoom increases as you move forward.
         </div>
       </div>
-
       <div class="card">
         <div class="tiny">
-          Tip: use jumps like 0 → 10 → 20 → 30 for key screenshots.
+          Tip: jump like 0 → 10 → 20 → 30 for screenshots.
         </div>
       </div>
     </div>
@@ -169,10 +258,8 @@
   <div id="view">
     <div id="hud">Loading…</div>
 
-    <!-- Mountain view -->
     <div id="mountainView"></div>
 
-    <!-- Stop-motion view -->
     <div id="lineView">
       <div id="linePanel">
         <div class="panelTitle">📸 Stop-Motion Gradient Descent (zoom-in per frame)</div>
@@ -204,14 +291,14 @@
     controlsLine.style.display = isM ? "none" : "";
     mountainView.style.display = isM ? "" : "none";
     lineView.style.display = isM ? "none" : "block";
-    hud.textContent = isM ? "🏔️ Mountain Mode" : "📸 Stop-Motion Mode";
+    hud.textContent = isM ? "🏔️ Mountain Mode (click surface to set start)" : "📸 Stop-Motion Mode";
     if (!isM) drawStopMotionFrame(parseInt(time2.value, 10));
   }
   btnMountain.onclick = () => setMode("mountain");
   btnLine.onclick = () => setMode("line");
 
   // ==========================
-  // PART A: MOUNTAIN (3D)
+  // THREE SETUP
   // ==========================
   const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
   renderer.setSize(mountainView.clientWidth, mountainView.clientHeight);
@@ -250,31 +337,171 @@
 
   const LIM = 3.2;
   const RES = 160;
-  const geo = new THREE.PlaneGeometry(LIM*2, LIM*2, RES, RES);
-  geo.rotateX(-Math.PI/2);
+
+  // ==========================
+  // UI ELEMENTS
+  // ==========================
+  const tempEl = document.getElementById("temp");
+  const coolEl = document.getElementById("cool");
+  const noiseEl = document.getElementById("noise");
+  const lrEl = document.getElementById("lr");
+  const smoothEl = document.getElementById("smooth");
+  const ampEl = document.getElementById("amp");
+  const seedEl = document.getElementById("seed");
+  const newSeedBtn = document.getElementById("newSeed");
+  const regenBtn = document.getElementById("regen");
+
+  const sxEl = document.getElementById("sx");
+  const szEl = document.getElementById("sz");
+
+  const tempVal = document.getElementById("tempVal");
+  const coolVal = document.getElementById("coolVal");
+  const noiseVal = document.getElementById("noiseVal");
+  const lrVal = document.getElementById("lrVal");
+  const smoothVal = document.getElementById("smoothVal");
+  const ampVal = document.getElementById("ampVal");
+  const seedVal = document.getElementById("seedVal");
+  const sxVal = document.getElementById("sxVal");
+  const szVal = document.getElementById("szVal");
+
+  const timeEl = document.getElementById("time");
+  const playBtn = document.getElementById("play");
+  const resetBtn = document.getElementById("reset");
+  const tVal = document.getElementById("tVal");
+  const hVal = document.getElementById("hVal");
+
+  const optReadout = document.getElementById("optReadout");
+  const gapVal = document.getElementById("gapVal");
+
+  const curve = document.getElementById("curve");
+  const ctxCurve = curve.getContext("2d");
+
+  const time2 = document.getElementById("time2");
+  const t2Val = document.getElementById("t2Val");
+
+  // ==========================
+  // HELPERS
+  // ==========================
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // Deterministic RNG (LCG)
+  function makeRng(seed){
+    let s = seed >>> 0;
+    return function(){
+      s = (1664525 * s + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  }
+
+  // Gaussian-ish using Box-Muller (deterministic from RNG)
+  function makeRandn(rng){
+    return function(){
+      const u1 = Math.max(rng(), 1e-12);
+      const u2 = rng();
+      const r = Math.sqrt(-2*Math.log(u1));
+      return r * Math.cos(2*Math.PI*u2);
+    };
+  }
+
+  // Hash -> [0,1)
+  function hash2i(ix, iz, seed){
+    let h = ix * 374761393 + iz * 668265263 + seed * 700001;
+    h = (h ^ (h >> 13)) >>> 0;
+    h = (h * 1274126177) >>> 0;
+    return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+  }
+
+  // Value noise w/ smooth interpolation
+  function fade(t){ return t*t*(3 - 2*t); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function valueNoise2D(x, z, seed){
+    const ix = Math.floor(x);
+    const iz = Math.floor(z);
+    const fx = x - ix;
+    const fz = z - iz;
+
+    const v00 = hash2i(ix,   iz,   seed);
+    const v10 = hash2i(ix+1, iz,   seed);
+    const v01 = hash2i(ix,   iz+1, seed);
+    const v11 = hash2i(ix+1, iz+1, seed);
+
+    const u = fade(fx);
+    const v = fade(fz);
+    const a = lerp(v00, v10, u);
+    const b = lerp(v01, v11, u);
+    return lerp(a, b, v) * 2 - 1; // [-1,1]
+  }
+
+  // fBm (fractional brownian motion) using value noise
+  function fbm2D(x, z, seed, octaves, lacunarity, gain){
+    let amp = 1.0;
+    let freq = 1.0;
+    let sum = 0.0;
+    let norm = 0.0;
+
+    for (let i=0; i<octaves; i++){
+      sum += amp * valueNoise2D(x*freq, z*freq, seed + i*101);
+      norm += amp;
+      amp *= gain;
+      freq *= lacunarity;
+    }
+    return sum / Math.max(1e-9, norm);
+  }
+
+  // ==========================
+  // LANDSCAPE FUNCTION (base + Brownian field)
+  // ==========================
+  function getParams(){
+    return {
+      T0: parseFloat(tempEl.value),
+      alpha: parseFloat(coolEl.value),
+      sigma: parseFloat(noiseEl.value),
+      lr: parseFloat(lrEl.value),
+      smooth: parseFloat(smoothEl.value),
+      amp: parseFloat(ampEl.value),
+      seed: parseInt(seedEl.value, 10),
+      sx: parseFloat(sxEl.value),
+      sz: parseFloat(szEl.value),
+    };
+  }
+
+  function derivedNoiseSettings(smooth){
+    // smooth=1 => smoother (fewer octaves, lower frequency)
+    // smooth=0 => rougher (more octaves, higher frequency)
+    const oct = Math.round(2 + (1 - smooth) * 6);       // 2..8
+    const lac = 1.6 + (1 - smooth) * 1.0;               // 1.6..2.6
+    const gain = 0.65 - (smooth) * 0.15;                // 0.50..0.65
+    const baseFreq = 0.55 + (1 - smooth) * 1.65;        // 0.55..2.20
+    return { oct, lac, gain, baseFreq };
+  }
 
   function fM(x, z){
+    const p = getParams();
     const bowl = 0.18*(x*x + 1.4*z*z);
     const waves = 0.35*Math.sin(1.2*x) * Math.cos(0.9*z);
+
+    // Brownian/fBm field
+    const ns = derivedNoiseSettings(p.smooth);
+    const n = fbm2D(x*ns.baseFreq, z*ns.baseFreq, p.seed, ns.oct, ns.lac, ns.gain);
+
     const dent = -0.55*Math.exp(-(x*x + z*z)/0.9);
-    return bowl + waves + dent;
+    return bowl + waves + dent + p.amp * 0.55 * n;
   }
+
   function gradM(x, z){
+    // finite difference gradient
     const e = 0.0015;
     const fx1 = fM(x+e, z), fx0 = fM(x-e, z);
     const fz1 = fM(x, z+e), fz0 = fM(x, z-e);
     return { gx: (fx1 - fx0)/(2*e), gz: (fz1 - fz0)/(2*e) };
   }
 
-  {
-    const pos = geo.attributes.position;
-    for (let i=0; i<pos.count; i++){
-      const vx = pos.getX(i);
-      const vz = pos.getZ(i);
-      pos.setY(i, fM(vx, vz));
-    }
-    geo.computeVertexNormals();
-  }
+  // ==========================
+  // GEOMETRY + MESH
+  // ==========================
+  const geo = new THREE.PlaneGeometry(LIM*2, LIM*2, RES, RES);
+  geo.rotateX(-Math.PI/2);
 
   const surface = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
     map: makeCheckerTexture(),
@@ -289,6 +516,22 @@
   );
   scene.add(ball);
 
+  // global min marker (trophy)
+  const trophy = new THREE.Mesh(
+    new THREE.ConeGeometry(0.14, 0.45, 16),
+    new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.35 })
+  );
+  trophy.rotation.x = Math.PI;
+  scene.add(trophy);
+
+  // final point marker (flag)
+  const flag = new THREE.Mesh(
+    new THREE.ConeGeometry(0.10, 0.35, 14),
+    new THREE.MeshStandardMaterial({ color: 0x9bf6ff, roughness: 0.35 })
+  );
+  flag.rotation.x = Math.PI;
+  scene.add(flag);
+
   const trailMat = new THREE.LineBasicMaterial({ color: 0xff7a8f });
   let trailLine = null;
   function setTrail(points){
@@ -297,48 +540,66 @@
     scene.add(trailLine);
   }
 
-  const noiseEl = document.getElementById("noise");
-  const lrEl = document.getElementById("lr");
-  const timeEl = document.getElementById("time");
-  const playBtn = document.getElementById("play");
-  const resetBtn = document.getElementById("reset");
-  const noiseVal = document.getElementById("noiseVal");
-  const lrVal = document.getElementById("lrVal");
-  const tVal = document.getElementById("tVal");
-  const hVal = document.getElementById("hVal");
+  // ==========================
+  // GLOBAL MIN COMPUTE
+  // ==========================
+  let globalMin = { x:0, z:0, y:Infinity };
 
-  const curve = document.getElementById("curve");
-  const ctxCurve = curve.getContext("2d");
+  function computeGlobalMin(sampleN=90){
+    let best = { x:0, z:0, y:Infinity };
+    for (let i=0; i<sampleN; i++){
+      const x = -LIM + (2*LIM) * (i/(sampleN-1));
+      for (let j=0; j<sampleN; j++){
+        const z = -LIM + (2*LIM) * (j/(sampleN-1));
+        const y = fM(x,z);
+        if (y < best.y) best = { x, z, y };
+      }
+    }
+    globalMin = best;
+    trophy.position.set(best.x, best.y + 0.25, best.z);
+  }
 
-  const time2 = document.getElementById("time2");
-  const t2Val = document.getElementById("t2Val");
+  // ==========================
+  // SURFACE REBUILD
+  // ==========================
+  function rebuildSurface(){
+    const pos = geo.attributes.position;
+    for (let i=0; i<pos.count; i++){
+      const vx = pos.getX(i);
+      const vz = pos.getZ(i);
+      pos.setY(i, fM(vx, vz));
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    computeGlobalMin(90);
+    computePath(); // run again on new surface
+  }
 
+  // ==========================
+  // PATH SIMULATION (Annealing)
+  // ==========================
   let path = [];
   let heights = [];
   let playing = false;
   let t = 0;
   const STEPS = 300;
 
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  // acceptance probability for simulated annealing
+  function acceptMove(dE, T, rng){
+    if (dE <= 0) return true;
+    if (T <= 1e-9) return false;
+    const p = Math.exp(-dE / T);
+    return rng() < p;
+  }
 
   function computePath(){
-    const lr = parseFloat(lrEl.value);
-    const sigma = parseFloat(noiseEl.value);
-    let x = 2.6, z = 1.9;
+    const p = getParams();
+    const rng = makeRng((p.seed * 2654435761) ^ Math.floor((p.lr*1e6) + (p.sigma*1e6) + (p.T0*1e6)));
+    const randn = makeRandn(rng);
+
+    let x = p.sx, z = p.sz;
     path = [];
     heights = [];
-
-    // deterministic-ish seed
-    let seed = Math.floor((lr*10000 + sigma*100000) % 2147483647);
-
-    function randn(){
-      seed = (48271 * seed) % 2147483647;
-      const u1 = seed / 2147483647;
-      seed = (48271 * seed) % 2147483647;
-      const u2 = seed / 2147483647;
-      const r = Math.sqrt(-2*Math.log(Math.max(u1, 1e-9)));
-      return r * Math.cos(2*Math.PI*u2);
-    }
 
     for (let i=0; i<=STEPS; i++){
       const y = fM(x, z);
@@ -346,10 +607,20 @@
       heights.push(y);
 
       const g = gradM(x, z);
-      x = x - lr*g.gx + sigma*randn();
-      z = z - lr*g.gz + sigma*randn();
-      x = clamp(x, -LIM, LIM);
-      z = clamp(z, -LIM, LIM);
+
+      // propose next move (gradient + jitter)
+      const xProp = clamp(x - p.lr*g.gx + p.sigma*randn(), -LIM, LIM);
+      const zProp = clamp(z - p.lr*g.gz + p.sigma*randn(), -LIM, LIM);
+
+      const yProp = fM(xProp, zProp);
+      const dE = yProp - y;
+
+      const T = p.T0 * Math.pow(p.alpha, i);
+      if (acceptMove(dE, T, rng)){
+        x = xProp; z = zProp;
+      } else {
+        // reject: stay
+      }
     }
 
     timeEl.max = String(STEPS);
@@ -361,9 +632,35 @@
     updateAtT(0);
     drawCurve();
 
+    // final marker
+    const last = path[STEPS];
+    flag.position.set(last.x, last.y + 0.22, last.z);
+
+    updateOptReadout();
     if (lineView.style.display === "block") drawStopMotionFrame(0);
   }
 
+  function updateOptReadout(){
+    const cur = path[t]?.y ?? NaN;
+    const fin = path[STEPS]?.y ?? NaN;
+    const g = globalMin?.y ?? NaN;
+    const gap = (fin - g);
+
+    optReadout.innerHTML =
+      `Current: <b>${isFinite(cur)?cur.toFixed(3):"—"}</b><br/>` +
+      `Global min: <b>${isFinite(g)?g.toFixed(3):"—"}</b> 🏆<br/>` +
+      `Final: <b>${isFinite(fin)?fin.toFixed(3):"—"}</b> 🏁`;
+
+    if (isFinite(gap)){
+      gapVal.textContent = `gap ${(gap>=0?"+":"")}${gap.toFixed(3)}`;
+    } else {
+      gapVal.textContent = "gap —";
+    }
+  }
+
+  // ==========================
+  // CURVE DRAW
+  // ==========================
   function drawCurve(){
     const W = curve.width, H = curve.height;
     ctxCurve.clearRect(0,0,W,H);
@@ -401,6 +698,9 @@
     ctxCurve.fillText("low ", 10, H-6);
   }
 
+  // ==========================
+  // UPDATE STEP
+  // ==========================
   function updateAtT(i){
     t = clamp(i, 0, STEPS);
     const p = path[t];
@@ -413,16 +713,59 @@
     }
     setTrail(pts);
 
-    noiseVal.textContent = parseFloat(noiseEl.value).toFixed(3);
-    lrVal.textContent = parseFloat(lrEl.value).toFixed(3);
+    const par = getParams();
+    tempVal.textContent = par.T0.toFixed(3);
+    coolVal.textContent = par.alpha.toFixed(3);
+    noiseVal.textContent = par.sigma.toFixed(3);
+    lrVal.textContent = par.lr.toFixed(3);
+    smoothVal.textContent = par.smooth.toFixed(2);
+    ampVal.textContent = par.amp.toFixed(2);
+    seedVal.textContent = String(par.seed);
+    sxVal.textContent = par.sx.toFixed(3);
+    szVal.textContent = par.sz.toFixed(3);
+
     tVal.textContent = String(t);
     hVal.textContent = p.y.toFixed(3);
 
     drawCurve();
+    updateOptReadout();
   }
 
-  noiseEl.addEventListener("input", computePath);
-  lrEl.addEventListener("input", computePath);
+  // ==========================
+  // EVENTS: re-run when params change
+  // ==========================
+  function rerun(){
+    playing=false;
+    playBtn.textContent="▶️ Play";
+    computePath();
+  }
+
+  tempEl.addEventListener("input", rerun);
+  coolEl.addEventListener("input", rerun);
+  noiseEl.addEventListener("input", rerun);
+  lrEl.addEventListener("input", rerun);
+
+  smoothEl.addEventListener("input", ()=>{
+    // smoothness changes the surface itself
+    rebuildSurface();
+  });
+  ampEl.addEventListener("input", ()=>{
+    rebuildSurface();
+  });
+  seedEl.addEventListener("input", ()=>{
+    rebuildSurface();
+  });
+
+  sxEl.addEventListener("input", rerun);
+  szEl.addEventListener("input", rerun);
+
+  newSeedBtn.addEventListener("click", ()=>{
+    const v = Math.floor(1 + Math.random()*9999);
+    seedEl.value = String(v);
+    rebuildSurface();
+  });
+
+  regenBtn.addEventListener("click", rebuildSurface);
 
   timeEl.addEventListener("input", (e)=>{
     playing=false;
@@ -443,24 +786,48 @@
     computePath();
   });
 
-  // =========================================================
-  // ✅ ONLY ADDITION: Click + drag to rotate camera (no controls lib)
-  // - While dragging: manual orbit
-  // - Not dragging: keep your existing auto orbit
-  // =========================================================
-  const ORBIT_TARGET = new THREE.Vector3(0, 0.3, 0);
-  let userHasDragged = false; // <- NEW: once true, we stop auto-orbit forever
+  // ==========================
+  // CLICK-TO-SET START (raycast)
+  // ==========================
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
 
+  function setStartFromWorldPoint(pt){
+    const x = clamp(pt.x, -LIM, LIM);
+    const z = clamp(pt.z, -LIM, LIM);
+    sxEl.value = String(x);
+    szEl.value = String(z);
+    rerun();
+  }
+
+  renderer.domElement.addEventListener("click", (e)=>{
+    // Only when in Mountain mode
+    if (mountainView.style.display === "none") return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    mouse.set(nx, ny);
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(surface, false);
+    if (hits.length){
+      setStartFromWorldPoint(hits[0].point);
+      hud.textContent = `🏔️ Start set to x=${parseFloat(sxEl.value).toFixed(2)}, z=${parseFloat(szEl.value).toFixed(2)} (click again to move start)`;
+    }
+  });
+
+  // ==========================
+  // SIMPLE DRAG ORBIT (no controls lib)
+  // ==========================
+  const ORBIT_TARGET = new THREE.Vector3(0, 0.3, 0);
+  let userHasDragged = false;
   let userDragging = false;
   let lastX = 0, lastY = 0;
+  let azimuth = 0.0;
+  let polar = 1.05;
+  const radius = 7.4;
 
-  // We store angles and radius for manual orbit
-  // Start values tuned to match your vibe
-  let azimuth = 0.0;     // left-right
-  let polar = 1.05;      // up-down (0 = top, pi/2 = side)
-  const radius = 7.4;    // distance from target
-
-  // Helper: set camera from spherical coords
   function applyOrbit(){
     const sinP = Math.sin(polar);
     camera.position.set(
@@ -471,8 +838,6 @@
     camera.lookAt(ORBIT_TARGET);
   }
 
-  // Initialize orbit to match current camera roughly
-  // (this keeps it stable when you start dragging)
   {
     const v = new THREE.Vector3().subVectors(camera.position, ORBIT_TARGET);
     const r = v.length();
@@ -482,9 +847,7 @@
     azimuth = a;
   }
 
-  // Drag events
   renderer.domElement.addEventListener("mousedown", (e)=>{
-    // only left click
     if (e.button !== 0) return;
     userDragging = true;
     userHasDragged = true;
@@ -500,24 +863,20 @@
 
   window.addEventListener("mousemove", (e)=>{
     if (!userDragging) return;
-
     const dx = e.clientX - lastX;
     const dy = e.clientY - lastY;
     lastX = e.clientX;
     lastY = e.clientY;
 
-    const speed = 0.005; // sensitivity
+    const speed = 0.005;
     azimuth -= dx * speed;
     polar   -= dy * speed;
-
-    // clamp polar so it doesn’t flip
     polar = clamp(polar, 0.25, 1.45);
-
     applyOrbit();
   });
 
   // ==========================
-  // tickMountain
+  // TICK LOOP
   // ==========================
   function tickMountain(){
     if (playing){
@@ -529,7 +888,6 @@
       if (next>=STEPS){ playing=false; playBtn.textContent="▶️ Play"; }
     }
 
-    // Your existing auto orbit stays... BUT only if user is NOT dragging
     if (!userDragging && !userHasDragged){
       const a = performance.now()*0.00015;
       camera.position.set(6.5*Math.cos(a), 3.5, 6.5*Math.sin(a));
@@ -541,7 +899,6 @@
       azimuth = Math.atan2(v.z, v.x);
     }
 
-
     renderer.setSize(mountainView.clientWidth, mountainView.clientHeight);
     camera.aspect = mountainView.clientWidth/mountainView.clientHeight;
     camera.updateProjectionMatrix();
@@ -550,7 +907,7 @@
   }
 
   // ==========================
-  // PART B: STOP-MOTION "PHOTO FRAMES"
+  // STOP-MOTION VIEW
   // ==========================
   const cStop = document.getElementById("cStop");
   const ctxStop = cStop.getContext("2d");
@@ -572,7 +929,6 @@
     t2Val.textContent = String(k);
 
     const W = cStop.width, H = cStop.height;
-
     ctxStop.clearRect(0,0,W,H);
     const grd = ctxStop.createLinearGradient(0,0,W,H);
     grd.addColorStop(0, "rgba(132,58,180,0.88)");
@@ -589,7 +945,6 @@
     ctxStop.globalAlpha = 1;
 
     const zoom = zoomForFrame(k, STEPS);
-
     const cxW = path[k].x;
     const czW = path[k].z;
 
@@ -644,7 +999,7 @@
 
     ctxStop.fillStyle = "rgba(255,255,255,0.92)";
     ctxStop.font = "18px system-ui";
-    ctxStop.fillText("Stop-Motion Gradient Descent", 18, 32);
+    ctxStop.fillText("Stop-Motion (Annealing / Roughness Demo)", 18, 32);
 
     ctxStop.fillStyle = "rgba(255,255,255,0.78)";
     ctxStop.font = "13px system-ui";
@@ -660,8 +1015,11 @@
     drawStopMotionFrame(k);
   });
 
-  // init
-  computePath();
+  // ==========================
+  // INIT
+  // ==========================
+  hud.textContent = "🏔️ Mountain Mode (click surface to set start)";
+  rebuildSurface();
   tickMountain();
   setMode("mountain");
 </script>
