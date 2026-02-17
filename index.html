@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Gradient Descent — Mountain + Stop-Motion</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html, body { margin:0; height:100%; background:#0b0b0f; color:#fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    #wrap { display:grid; grid-template-columns: 360px 1fr; height:100%; }
+
+    #ui {
+      padding:16px;
+      background: rgba(20,20,28,0.92);
+      border-right: 1px solid rgba(255,255,255,0.08);
+      overflow:auto;
+    }
+
+    h1 { font-size:18px; margin:0 0 10px; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .label { font-weight:700; margin-bottom: 6px; display:flex; justify-content:space-between; gap:12px; }
+    input[type="range"] { width:100%; }
+
+    .btnRow { display:flex; gap:10px; }
+    button {
+      flex:1;
+      padding:10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      color:#fff;
+      cursor:pointer;
+      font-weight:700;
+    }
+    button:hover { background: rgba(255,255,255,0.12); }
+
+    .modeRow { display:flex; gap:10px; }
+    .modeBtn { flex:1; }
+    .modeBtn.active { outline: 2px solid rgba(120,200,255,0.8); }
+
+    #view { position:relative; overflow:hidden; }
+    #hud {
+      position:absolute;
+      left:14px; top:14px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 14px;
+      pointer-events:none;
+      z-index: 5;
+    }
+    .tiny { opacity:0.8; font-size:12px; }
+
+    /* Right side layouts */
+    #mountainView, #lineView { position:absolute; inset:0; }
+    #lineView { display:none; padding: 16px; box-sizing:border-box; }
+
+    /* Stop-motion single panel */
+    #linePanel {
+      height: calc(100% - 12px);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    #linePanel .panelTitle{
+      padding:10px 12px;
+      font-weight:800;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+      opacity: 0.95;
+    }
+    canvas.pcanvas { width:100%; height:100%; display:block; }
+    .panelBody { flex:1; }
+
+  </style>
+</head>
+
+<body>
+<div id="wrap">
+  <div id="ui">
+    <h1>🎯 Gradient Descent</h1>
+
+    <div class="card">
+      <div class="label"><span>Mode</span><span class="tiny">switch views</span></div>
+      <div class="modeRow">
+        <button id="btnMountain" class="modeBtn active">🏔️ Mountain Mode</button>
+        <button id="btnLine" class="modeBtn">📸 Stop-Motion Mode</button>
+      </div>
+      <div class="tiny" style="margin-top:10px;">
+        Mountain = 3D surface + controls.<br/>
+        Stop-Motion = “photo frames” (zoom-in as time increases).
+      </div>
+    </div>
+
+    <!-- Mountain controls -->
+    <div id="controlsMountain">
+      <div class="card">
+        <div class="label">
+          <span>🌀 Noise (Jitter)</span>
+          <span id="noiseVal">0.030</span>
+        </div>
+        <input id="noise" type="range" min="0" max="0.12" step="0.001" value="0.03" />
+        <div class="tiny">More noise = more random movement.</div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>👣 Step Size</span>
+          <span id="lrVal">0.040</span>
+        </div>
+        <input id="lr" type="range" min="0.005" max="0.09" step="0.001" value="0.04" />
+        <div class="tiny">Bigger step = faster, but can overshoot.</div>
+      </div>
+
+      <div class="card">
+        <div class="label">
+          <span>⏱️ Time Step</span>
+          <span id="tVal">0</span>
+        </div>
+        <input id="time" type="range" min="0" max="300" step="1" value="0" />
+        <div class="tiny">Scrub time like a video.</div>
+      </div>
+
+      <div class="card">
+        <div class="btnRow">
+          <button id="play">▶️ Play</button>
+          <button id="reset">🔁 Reset</button>
+        </div>
+        <div class="tiny" style="margin-top:8px;">
+          “The ball wants to reach the lowest point 🏆”
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label"><span>📈 Height vs Time</span><span id="hVal">—</span></div>
+        <canvas id="curve" width="320" height="140"></canvas>
+        <div class="tiny">Lower is better. The dot follows the scrubber.</div>
+      </div>
+    </div>
+
+    <!-- Stop-motion controls (ONLY scrub) -->
+    <div id="controlsLine" style="display:none;">
+      <div class="card">
+        <div class="label"><span>📸 Frame (scrub)</span><span id="t2Val">0</span></div>
+        <input id="time2" type="range" min="0" max="300" step="1" value="0" />
+        <div class="tiny">
+          Each step is a “photo frame”.<br/>
+          Zoom increases as you move forward.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tiny">
+          Tip: use jumps like 0 → 10 → 20 → 30 for key screenshots.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view">
+    <div id="hud">Loading…</div>
+
+    <!-- Mountain view -->
+    <div id="mountainView"></div>
+
+    <!-- Stop-motion view -->
+    <div id="lineView">
+      <div id="linePanel">
+        <div class="panelTitle">📸 Stop-Motion Gradient Descent (zoom-in per frame)</div>
+        <div class="panelBody"><canvas id="cStop" class="pcanvas" width="1100" height="760"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+
+  // ==========================
+  // MODE SWITCH
+  // ==========================
+  const btnMountain = document.getElementById("btnMountain");
+  const btnLine = document.getElementById("btnLine");
+  const controlsMountain = document.getElementById("controlsMountain");
+  const controlsLine = document.getElementById("controlsLine");
+  const mountainView = document.getElementById("mountainView");
+  const lineView = document.getElementById("lineView");
+  const hud = document.getElementById("hud");
+
+  function setMode(mode){
+    const isM = mode === "mountain";
+    btnMountain.classList.toggle("active", isM);
+    btnLine.classList.toggle("active", !isM);
+    controlsMountain.style.display = isM ? "" : "none";
+    controlsLine.style.display = isM ? "none" : "";
+    mountainView.style.display = isM ? "" : "none";
+    lineView.style.display = isM ? "none" : "block";
+    hud.textContent = isM ? "🏔️ Mountain Mode" : "📸 Stop-Motion Mode";
+    if (!isM) drawStopMotionFrame(parseInt(time2.value, 10));
+  }
+  btnMountain.onclick = () => setMode("mountain");
+  btnLine.onclick = () => setMode("line");
+
+  // ==========================
+  // PART A: MOUNTAIN (3D)
+  // ==========================
+  const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+  renderer.setSize(mountainView.clientWidth, mountainView.clientHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  mountainView.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x05060a, 10, 28);
+
+  const camera = new THREE.PerspectiveCamera(55, mountainView.clientWidth/mountainView.clientHeight, 0.1, 100);
+  camera.position.set(4.5, 3.2, 5.2);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+  const key = new THREE.DirectionalLight(0xffffff, 0.85);
+  key.position.set(6, 10, 6);
+  scene.add(key);
+
+  function makeCheckerTexture(size=512, squares=12) {
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    const ctx = c.getContext("2d");
+    const s = size / squares;
+    for (let y=0; y<squares; y++){
+      for (let x=0; x<squares; x++){
+        const even = (x+y) % 2 === 0;
+        ctx.fillStyle = even ? "#eaf7ff" : "#4bb3ff";
+        ctx.fillRect(x*s, y*s, s, s);
+      }
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2.2, 2.2);
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return tex;
+  }
+
+  const LIM = 3.2;
+  const RES = 160;
+  const geo = new THREE.PlaneGeometry(LIM*2, LIM*2, RES, RES);
+  geo.rotateX(-Math.PI/2);
+
+  function fM(x, z){
+    const bowl = 0.18*(x*x + 1.4*z*z);
+    const waves = 0.35*Math.sin(1.2*x) * Math.cos(0.9*z);
+    const dent = -0.55*Math.exp(-(x*x + z*z)/0.9);
+    return bowl + waves + dent;
+  }
+  function gradM(x, z){
+    const e = 0.0015;
+    const fx1 = fM(x+e, z), fx0 = fM(x-e, z);
+    const fz1 = fM(x, z+e), fz0 = fM(x, z-e);
+    return { gx: (fx1 - fx0)/(2*e), gz: (fz1 - fz0)/(2*e) };
+  }
+
+  {
+    const pos = geo.attributes.position;
+    for (let i=0; i<pos.count; i++){
+      const vx = pos.getX(i);
+      const vz = pos.getZ(i);
+      pos.setY(i, fM(vx, vz));
+    }
+    geo.computeVertexNormals();
+  }
+
+  const surface = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    map: makeCheckerTexture(),
+    roughness: 0.85,
+    metalness: 0.0,
+  }));
+  scene.add(surface);
+
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 32, 32),
+    new THREE.MeshStandardMaterial({ color: 0xff5a7a, roughness: 0.25 })
+  );
+  scene.add(ball);
+
+  const trailMat = new THREE.LineBasicMaterial({ color: 0xff7a8f });
+  let trailLine = null;
+  function setTrail(points){
+    if (trailLine) scene.remove(trailLine);
+    trailLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), trailMat);
+    scene.add(trailLine);
+  }
+
+  const noiseEl = document.getElementById("noise");
+  const lrEl = document.getElementById("lr");
+  const timeEl = document.getElementById("time");
+  const playBtn = document.getElementById("play");
+  const resetBtn = document.getElementById("reset");
+  const noiseVal = document.getElementById("noiseVal");
+  const lrVal = document.getElementById("lrVal");
+  const tVal = document.getElementById("tVal");
+  const hVal = document.getElementById("hVal");
+
+  const curve = document.getElementById("curve");
+  const ctxCurve = curve.getContext("2d");
+
+  const time2 = document.getElementById("time2");
+  const t2Val = document.getElementById("t2Val");
+
+  let path = [];
+  let heights = [];
+  let playing = false;
+  let t = 0;
+  const STEPS = 300;
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function computePath(){
+    const lr = parseFloat(lrEl.value);
+    const sigma = parseFloat(noiseEl.value);
+    let x = 2.6, z = 1.9;
+    path = [];
+    heights = [];
+
+    // deterministic-ish seed
+    let seed = Math.floor((lr*10000 + sigma*100000) % 2147483647);
+
+    function randn(){
+      seed = (48271 * seed) % 2147483647;
+      const u1 = seed / 2147483647;
+      seed = (48271 * seed) % 2147483647;
+      const u2 = seed / 2147483647;
+      const r = Math.sqrt(-2*Math.log(Math.max(u1, 1e-9)));
+      return r * Math.cos(2*Math.PI*u2);
+    }
+
+    for (let i=0; i<=STEPS; i++){
+      const y = fM(x, z);
+      path.push({ x, z, y });
+      heights.push(y);
+
+      const g = gradM(x, z);
+      x = x - lr*g.gx + sigma*randn();
+      z = z - lr*g.gz + sigma*randn();
+      x = clamp(x, -LIM, LIM);
+      z = clamp(z, -LIM, LIM);
+    }
+
+    timeEl.max = String(STEPS);
+    timeEl.value = "0";
+    time2.max = String(STEPS);
+    time2.value = "0";
+
+    t = 0;
+    updateAtT(0);
+    drawCurve();
+
+    if (lineView.style.display === "block") drawStopMotionFrame(0);
+  }
+
+  function drawCurve(){
+    const W = curve.width, H = curve.height;
+    ctxCurve.clearRect(0,0,W,H);
+    ctxCurve.fillStyle = "rgba(255,255,255,0.03)";
+    ctxCurve.fillRect(0,0,W,H);
+
+    let minY=Infinity, maxY=-Infinity;
+    for (const y of heights){ minY=Math.min(minY,y); maxY=Math.max(maxY,y); }
+
+    const pad=10;
+    const mapX = (i)=> pad + (i/STEPS)*(W-2*pad);
+    const mapY = (y)=>{
+      const a = (y-minY)/Math.max(1e-6,(maxY-minY));
+      return (H-pad) - a*(H-2*pad);
+    };
+
+    ctxCurve.beginPath();
+    ctxCurve.lineWidth=3;
+    ctxCurve.strokeStyle="rgba(120,200,255,0.9)";
+    for (let i=0;i<heights.length;i++){
+      const x=mapX(i), y=mapY(heights[i]);
+      if (i===0) ctxCurve.moveTo(x,y); else ctxCurve.lineTo(x,y);
+    }
+    ctxCurve.stroke();
+
+    const dx=mapX(t), dy=mapY(heights[t]);
+    ctxCurve.beginPath();
+    ctxCurve.fillStyle="rgba(255,90,122,0.95)";
+    ctxCurve.arc(dx,dy,6,0,Math.PI*2);
+    ctxCurve.fill();
+
+    ctxCurve.fillStyle="rgba(255,255,255,0.8)";
+    ctxCurve.font="12px system-ui";
+    ctxCurve.fillText("high ", 10, 14);
+    ctxCurve.fillText("low ", 10, H-6);
+  }
+
+  function updateAtT(i){
+    t = clamp(i, 0, STEPS);
+    const p = path[t];
+    ball.position.set(p.x, p.y + 0.12, p.z);
+
+    const pts=[];
+    for (let k=0;k<=t;k++){
+      const pk=path[k];
+      pts.push(new THREE.Vector3(pk.x, pk.y+0.08, pk.z));
+    }
+    setTrail(pts);
+
+    noiseVal.textContent = parseFloat(noiseEl.value).toFixed(3);
+    lrVal.textContent = parseFloat(lrEl.value).toFixed(3);
+    tVal.textContent = String(t);
+    hVal.textContent = p.y.toFixed(3);
+
+    drawCurve();
+  }
+
+  noiseEl.addEventListener("input", computePath);
+  lrEl.addEventListener("input", computePath);
+
+  timeEl.addEventListener("input", (e)=>{
+    playing=false;
+    playBtn.textContent="▶️ Play";
+    updateAtT(parseInt(e.target.value,10));
+    time2.value = String(t);
+    if (lineView.style.display === "block") drawStopMotionFrame(t);
+  });
+
+  playBtn.addEventListener("click", ()=>{
+    playing=!playing;
+    playBtn.textContent = playing ? "⏸ Pause" : "▶️ Play";
+  });
+
+  resetBtn.addEventListener("click", ()=>{
+    playing=false;
+    playBtn.textContent="▶️ Play";
+    computePath();
+  });
+
+  // =========================================================
+  // ✅ ONLY ADDITION: Click + drag to rotate camera (no controls lib)
+  // - While dragging: manual orbit
+  // - Not dragging: keep your existing auto orbit
+  // =========================================================
+  const ORBIT_TARGET = new THREE.Vector3(0, 0.3, 0);
+  let userHasDragged = false; // <- NEW: once true, we stop auto-orbit forever
+
+  let userDragging = false;
+  let lastX = 0, lastY = 0;
+
+  // We store angles and radius for manual orbit
+  // Start values tuned to match your vibe
+  let azimuth = 0.0;     // left-right
+  let polar = 1.05;      // up-down (0 = top, pi/2 = side)
+  const radius = 7.4;    // distance from target
+
+  // Helper: set camera from spherical coords
+  function applyOrbit(){
+    const sinP = Math.sin(polar);
+    camera.position.set(
+      ORBIT_TARGET.x + radius * sinP * Math.cos(azimuth),
+      ORBIT_TARGET.y + radius * Math.cos(polar),
+      ORBIT_TARGET.z + radius * sinP * Math.sin(azimuth)
+    );
+    camera.lookAt(ORBIT_TARGET);
+  }
+
+  // Initialize orbit to match current camera roughly
+  // (this keeps it stable when you start dragging)
+  {
+    const v = new THREE.Vector3().subVectors(camera.position, ORBIT_TARGET);
+    const r = v.length();
+    const p = Math.acos(clamp(v.y / Math.max(1e-9, r), -1, 1));
+    const a = Math.atan2(v.z, v.x);
+    polar = clamp(p, 0.25, 1.45);
+    azimuth = a;
+  }
+
+  // Drag events
+  renderer.domElement.addEventListener("mousedown", (e)=>{
+    // only left click
+    if (e.button !== 0) return;
+    userDragging = true;
+    userHasDragged = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    renderer.domElement.style.cursor = "grabbing";
+  });
+
+  window.addEventListener("mouseup", ()=>{
+    userDragging = false;
+    renderer.domElement.style.cursor = "default";
+  });
+
+  window.addEventListener("mousemove", (e)=>{
+    if (!userDragging) return;
+
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    const speed = 0.005; // sensitivity
+    azimuth -= dx * speed;
+    polar   -= dy * speed;
+
+    // clamp polar so it doesn’t flip
+    polar = clamp(polar, 0.25, 1.45);
+
+    applyOrbit();
+  });
+
+  // ==========================
+  // tickMountain
+  // ==========================
+  function tickMountain(){
+    if (playing){
+      const next = Math.min(STEPS, t+1);
+      timeEl.value = String(next);
+      updateAtT(next);
+      time2.value = String(next);
+      if (lineView.style.display === "block") drawStopMotionFrame(next);
+      if (next>=STEPS){ playing=false; playBtn.textContent="▶️ Play"; }
+    }
+
+    // Your existing auto orbit stays... BUT only if user is NOT dragging
+    if (!userDragging && !userHasDragged){
+      const a = performance.now()*0.00015;
+      camera.position.set(6.5*Math.cos(a), 3.5, 6.5*Math.sin(a));
+      camera.lookAt(0,0.3,0);
+
+      const v = new THREE.Vector3().subVectors(camera.position, ORBIT_TARGET);
+      const r = v.length();
+      polar = clamp(Math.acos(clamp(v.y / Math.max(1e-9, r), -1, 1)), 0.25, 1.45);
+      azimuth = Math.atan2(v.z, v.x);
+    }
+
+
+    renderer.setSize(mountainView.clientWidth, mountainView.clientHeight);
+    camera.aspect = mountainView.clientWidth/mountainView.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+    requestAnimationFrame(tickMountain);
+  }
+
+  // ==========================
+  // PART B: STOP-MOTION "PHOTO FRAMES"
+  // ==========================
+  const cStop = document.getElementById("cStop");
+  const ctxStop = cStop.getContext("2d");
+
+  function smoothstep(a,b,x){
+    const t = clamp((x-a)/(b-a), 0, 1);
+    return t*t*(3 - 2*t);
+  }
+
+  function zoomForFrame(k, total){
+    const alpha = smoothstep(0.0, 1.0, k / Math.max(1,total));
+    const minZoom = 55;
+    const maxZoom = 260;
+    return minZoom + alpha * (maxZoom - minZoom);
+  }
+
+  function drawStopMotionFrame(stepIndex){
+    const k = clamp(stepIndex, 0, STEPS);
+    t2Val.textContent = String(k);
+
+    const W = cStop.width, H = cStop.height;
+
+    ctxStop.clearRect(0,0,W,H);
+    const grd = ctxStop.createLinearGradient(0,0,W,H);
+    grd.addColorStop(0, "rgba(132,58,180,0.88)");
+    grd.addColorStop(1, "rgba(26,20,70,0.98)");
+    ctxStop.fillStyle = grd;
+    ctxStop.fillRect(0,0,W,H);
+
+    ctxStop.globalAlpha = 0.22;
+    ctxStop.strokeStyle = "rgba(255,255,255,0.25)";
+    ctxStop.lineWidth = 1;
+    const grid = 16;
+    for (let x=0; x<=W; x+=grid){ ctxStop.beginPath(); ctxStop.moveTo(x,0); ctxStop.lineTo(x,H); ctxStop.stroke(); }
+    for (let y=0; y<=H; y+=grid){ ctxStop.beginPath(); ctxStop.moveTo(0,y); ctxStop.lineTo(W,y); ctxStop.stroke(); }
+    ctxStop.globalAlpha = 1;
+
+    const zoom = zoomForFrame(k, STEPS);
+
+    const cxW = path[k].x;
+    const czW = path[k].z;
+
+    const mapX = (x)=> W/2 + (x - cxW) * zoom;
+    const mapY = (z)=> H/2 + (z - czW) * zoom;
+
+    const vign = ctxStop.createRadialGradient(W/2, H/2, 50, W/2, H/2, Math.max(W,H)/1.1);
+    vign.addColorStop(0, "rgba(0,0,0,0)");
+    vign.addColorStop(1, "rgba(0,0,0,0.35)");
+    ctxStop.fillStyle = vign;
+    ctxStop.fillRect(0,0,W,H);
+
+    ctxStop.globalAlpha = 0.55;
+    for (let r=0.25; r<=3.0; r+=0.16){
+      const alpha = 0.10 + 0.25*(r/3.0);
+      ctxStop.strokeStyle = `rgba(0,0,0,${alpha})`;
+      ctxStop.lineWidth = 2;
+      ctxStop.beginPath();
+      ctxStop.ellipse(W/2, H/2, r*zoom*1.55, r*zoom*1.05, 0, 0, Math.PI*2);
+      ctxStop.stroke();
+    }
+    ctxStop.globalAlpha = 1;
+
+    ctxStop.strokeStyle = "rgba(255,255,255,0.88)";
+    ctxStop.lineWidth = 3;
+    ctxStop.beginPath();
+    for (let i=0;i<=k;i++){
+      const px = mapX(path[i].x);
+      const py = mapY(path[i].z);
+      if (i===0) ctxStop.moveTo(px, py);
+      else ctxStop.lineTo(px, py);
+    }
+    ctxStop.stroke();
+
+    const bx = mapX(path[k].x);
+    const by = mapY(path[k].z);
+
+    ctxStop.fillStyle = "rgba(0,0,0,0.35)";
+    ctxStop.beginPath();
+    ctxStop.ellipse(bx+10, by+12, 22, 14, 0, 0, Math.PI*2);
+    ctxStop.fill();
+
+    ctxStop.fillStyle = "rgba(255,90,122,0.98)";
+    ctxStop.beginPath();
+    ctxStop.arc(bx, by, 18, 0, Math.PI*2);
+    ctxStop.fill();
+
+    ctxStop.fillStyle = "rgba(255,255,255,0.35)";
+    ctxStop.beginPath();
+    ctxStop.arc(bx-6, by-7, 6, 0, Math.PI*2);
+    ctxStop.fill();
+
+    ctxStop.fillStyle = "rgba(255,255,255,0.92)";
+    ctxStop.font = "18px system-ui";
+    ctxStop.fillText("Stop-Motion Gradient Descent", 18, 32);
+
+    ctxStop.fillStyle = "rgba(255,255,255,0.78)";
+    ctxStop.font = "13px system-ui";
+    ctxStop.fillText("Scrub the slider to capture frames (zoom increases over time).", 18, 54);
+
+    ctxStop.fillStyle = "rgba(255,255,255,0.80)";
+    ctxStop.font = "13px system-ui";
+    ctxStop.fillText(`frame ${k}/${STEPS}  •  zoom ${(zoom/55).toFixed(2)}x`, 18, H-18);
+  }
+
+  time2.addEventListener("input", (e)=>{
+    const k = parseInt(e.target.value, 10);
+    drawStopMotionFrame(k);
+  });
+
+  // init
+  computePath();
+  tickMountain();
+  setMode("mountain");
+</script>
+</body>
+</html>
