@@ -2,1026 +2,958 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Gradient Descent + Simulated Annealing — GitHub Pages Demo</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gradient Descent + Simulated Annealing (fBM Landscape)</title>
   <style>
-    html, body { margin:0; height:100%; background:#0b0b0f; color:#fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-    #wrap { display:grid; grid-template-columns: 360px 1fr; height:100%; }
-    #ui {
-      padding:16px;
-      background: rgba(20,20,28,0.92);
-      border-right: 1px solid rgba(255,255,255,0.08);
-      overflow:auto;
+    :root{
+      --bg:#0b1020;
+      --panel:#0f1731;
+      --panel2:#0b132b;
+      --ink:#d7e3ff;
+      --muted:#88a0d6;
+      --grid:#1b2a57;
+      --accent:#7dd3fc;
+      --good:#34d399;
+      --warn:#fbbf24;
+      --bad:#fb7185;
     }
-    h1 { font-size:18px; margin:0 0 10px; }
-    .card {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 12px;
-      margin-bottom: 12px;
+    html,body{height:100%}
+    body{
+      margin:0; background:radial-gradient(1200px 800px at 30% 10%, #101a3a 0%, var(--bg) 55%, #050814 100%);
+      color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      letter-spacing:.2px;
     }
-    .label { font-weight:700; margin-bottom: 6px; display:flex; justify-content:space-between; gap:12px; }
-    input[type="range"] { width:100%; }
-    .btnRow { display:flex; gap:10px; }
-    button {
-      flex:1;
-      padding:10px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.08);
-      color:#fff;
-      cursor:pointer;
-      font-weight:700;
+    .wrap{
+      display:grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap:14px;
+      padding:14px;
+      box-sizing:border-box;
+      height:100%;
     }
-    button:hover { background: rgba(255,255,255,0.12); }
-    .modeRow { display:flex; gap:10px; }
-    .modeBtn { flex:1; }
-    .modeBtn.active { outline: 2px solid rgba(120,200,255,0.8); }
-    #view { position:relative; overflow:hidden; }
-    #hud {
-      position:absolute;
-      left:14px; top:14px;
-      background: rgba(0,0,0,0.35);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 14px;
-      padding: 10px 12px;
-      font-size: 14px;
-      pointer-events:none;
-      z-index: 5;
-      max-width: 60ch;
-      line-height: 1.25;
-    }
-    .tiny { opacity:0.8; font-size:12px; }
-
-    #mountainView, #lineView { position:absolute; inset:0; }
-    #lineView { display:none; padding: 16px; box-sizing:border-box; }
-
-    #linePanel {
-      height: calc(100% - 12px);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(125, 211, 252, .14);
+      border-radius:16px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
       overflow:hidden;
+    }
+    .main{
+      display:grid;
+      grid-template-rows: auto 1fr auto;
+      min-height:0;
+    }
+    .hdr{
+      padding:14px 16px;
       display:flex;
-      flex-direction:column;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(125,211,252,.12);
+      background:linear-gradient(180deg, rgba(10,20,45,.85), rgba(10,20,45,.35));
     }
-    #linePanel .panelTitle{
-      padding:10px 12px;
-      font-weight:800;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      font-size: 13px;
-      opacity: 0.95;
+    .title{
+      font-size:14px;
+      font-weight:650;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      color:#cfe3ff;
+      opacity:.95;
     }
-    canvas.pcanvas { width:100%; height:100%; display:block; }
-    .panelBody { flex:1; }
-
-    .pill {
-      display:inline-block;
-      padding:2px 8px;
-      border-radius: 999px;
-      border:1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.06);
-      font-size: 12px;
-      opacity: 0.92;
-      margin-left: 6px;
+    .sub{
+      font-size:12px;
+      color:var(--muted);
+      opacity:.95;
+      white-space:nowrap;
+    }
+    .canvasWrap{
+      position:relative;
+      min-height:0;
+      background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.4));
+    }
+    canvas{
+      display:block;
+      width:100%;
+      height:100%;
+    }
+    .hint{
+      position:absolute;
+      left:14px; bottom:12px;
+      font-size:12px;
+      color:rgba(215,227,255,.85);
+      background:rgba(10,16,32,.55);
+      border:1px solid rgba(125,211,252,.14);
+      padding:8px 10px;
+      border-radius:12px;
+      backdrop-filter: blur(6px);
+    }
+    .hud{
+      position:absolute;
+      right:14px; top:12px;
+      font-size:12px;
+      color:rgba(215,227,255,.9);
+      background:rgba(10,16,32,.55);
+      border:1px solid rgba(125,211,252,.14);
+      padding:10px 10px;
+      border-radius:12px;
+      backdrop-filter: blur(6px);
+      min-width:200px;
+    }
+    .hud .row{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      margin:4px 0;
+    }
+    .hud .k{color:rgba(136,160,214,.95)}
+    .hud .v{font-variant-numeric: tabular-nums; color:#e7f0ff}
+    .panel{
+      display:grid;
+      grid-template-rows: auto 1fr;
+      min-height:0;
+    }
+    .controls{
+      padding:12px 14px 10px;
+      display:grid;
+      gap:10px;
+      background:linear-gradient(180deg, rgba(10,20,45,.75), rgba(10,20,45,.2));
+      border-bottom:1px solid rgba(125,211,252,.12);
+    }
+    .group{
+      background:rgba(8,14,28,.55);
+      border:1px solid rgba(125,211,252,.12);
+      border-radius:14px;
+      padding:10px 10px 8px;
+    }
+    .groupTitle{
+      font-size:12px;
+      color:rgba(207,227,255,.9);
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      margin:0 0 8px 0;
+    }
+    .rowCtrl{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      align-items:center;
+      margin:8px 0;
+    }
+    label{
+      font-size:12px;
+      color:rgba(215,227,255,.92);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .val{
+      color:rgba(136,160,214,.95);
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+    }
+    .btns{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:8px;
+    }
+    button{
+      background:linear-gradient(180deg, rgba(125,211,252,.22), rgba(125,211,252,.10));
+      color:rgba(231,240,255,.95);
+      border:1px solid rgba(125,211,252,.25);
+      border-radius:12px;
+      padding:9px 10px;
+      font-size:12px;
+      cursor:pointer;
+      transition: transform .06s ease, border-color .12s ease, background .12s ease;
+      letter-spacing:.02em;
+      user-select:none;
+    }
+    button:hover{border-color:rgba(125,211,252,.45)}
+    button:active{transform: translateY(1px)}
+    button.secondary{
+      background:linear-gradient(180deg, rgba(136,160,214,.18), rgba(136,160,214,.08));
+      border-color:rgba(136,160,214,.22);
+    }
+    button.danger{
+      background:linear-gradient(180deg, rgba(251,113,133,.20), rgba(251,113,133,.08));
+      border-color:rgba(251,113,133,.28);
+    }
+    .footer{
+      padding:10px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-top:1px solid rgba(125,211,252,.12);
+      background:linear-gradient(180deg, rgba(10,20,45,.25), rgba(10,20,45,.55));
+      gap:12px;
+    }
+    .mini{
+      display:grid;
+      gap:8px;
+      padding:12px 14px 14px;
+      overflow:auto;
+      min-height:0;
+    }
+    .note{
+      font-size:12px;
+      color:rgba(136,160,214,.95);
+      line-height:1.35;
+    }
+    .legend{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      font-size:12px;
+      color:rgba(215,227,255,.9);
+    }
+    .tag{display:flex; align-items:center; gap:8px}
+    .dot{width:10px; height:10px; border-radius:50%}
+    .dot.g{background:var(--good)}
+    .dot.a{background:var(--warn)}
+    .dot.b{background:var(--bad)}
+    .dot.c{background:var(--accent)}
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:11px;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid rgba(125,211,252,.18);
+      background:rgba(8,14,28,.55);
+      color:rgba(231,240,255,.92);
     }
   </style>
 </head>
-
 <body>
-<div id="wrap">
-  <div id="ui">
-    <h1>🎯 Gradient Descent + Annealing</h1>
-
-    <div class="card">
-      <div class="label"><span>Mode</span><span class="tiny">switch views</span></div>
-      <div class="modeRow">
-        <button id="btnMountain" class="modeBtn active">🏔️ Mountain Mode</button>
-        <button id="btnLine" class="modeBtn">📸 Stop-Motion Mode</button>
+  <div class="wrap">
+    <section class="card main">
+      <div class="hdr">
+        <div class="title">Procedural Landscape · fBM · Optimization</div>
+        <div class="sub">Click to set start · Compare local vs global minima</div>
       </div>
-      <div class="tiny" style="margin-top:10px;">
-        <b>Mountain</b> = 3D surface + controls + click-to-start.<br/>
-        <b>Stop-Motion</b> = “photo frames” zooming in per step.
-      </div>
-    </div>
 
-    <!-- Mountain controls -->
-    <div id="controlsMountain">
-      <div class="card">
-        <div class="label">
-          <span>🌡️ Temperature (T0)</span>
-          <span id="tempVal">0.250</span>
+      <div class="canvasWrap">
+        <canvas id="view"></canvas>
+
+        <div class="hud" id="hud">
+          <div class="row"><span class="k">Mode</span><span class="v" id="hudMode">—</span></div>
+          <div class="row"><span class="k">f(x,y)</span><span class="v" id="hudF">—</span></div>
+          <div class="row"><span class="k">Step</span><span class="v" id="hudStep">—</span></div>
+          <div class="row"><span class="k">Accepted</span><span class="v" id="hudAcc">—</span></div>
+          <div class="row"><span class="k">Temp</span><span class="v" id="hudT">—</span></div>
+          <div class="row"><span class="k">LR</span><span class="v" id="hudLR">—</span></div>
         </div>
-        <input id="temp" type="range" min="0" max="1.0" step="0.001" value="0.25" />
-        <div class="tiny">
-          Simulated annealing: higher T accepts uphill moves more often.
+
+        <div class="hint">
+          <div><span class="kbd">Click</span> set start · <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset path</div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="label">
-          <span>❄️ Cooling (alpha)</span>
-          <span id="coolVal">0.985</span>
+      <div class="footer">
+        <div class="legend">
+          <div class="tag"><span class="dot c"></span>Current</div>
+          <div class="tag"><span class="dot g"></span>Best found</div>
+          <div class="tag"><span class="dot a"></span>SA proposed</div>
+          <div class="tag"><span class="dot b"></span>Start</div>
         </div>
-        <input id="cool" type="range" min="0.90" max="0.999" step="0.001" value="0.985" />
-        <div class="tiny">
-          T(t) = T0 · alpha^t. Closer to 1 = cool slower.
-        </div>
+        <canvas id="spark" width="220" height="44" style="border-radius:10px; border:1px solid rgba(125,211,252,.12); background:rgba(8,14,28,.55)"></canvas>
+      </div>
+    </section>
+
+    <aside class="card panel">
+      <div class="hdr">
+        <div class="title">Controls</div>
+        <div class="sub">Dark · scientific · interactive</div>
       </div>
 
-      <div class="card">
-        <div class="label">
-          <span>🌀 Jitter (proposal noise)</span>
-          <span id="noiseVal">0.020</span>
-        </div>
-        <input id="noise" type="range" min="0" max="0.12" step="0.001" value="0.02" />
-        <div class="tiny">Adds randomness to the proposal step (still uses annealing acceptance).</div>
-      </div>
+      <div class="mini">
+        <div class="group">
+          <div class="groupTitle">Landscape (fBM)</div>
 
-      <div class="card">
-        <div class="label">
-          <span>👣 Step Size</span>
-          <span id="lrVal">0.040</span>
-        </div>
-        <input id="lr" type="range" min="0.005" max="0.09" step="0.001" value="0.04" />
-        <div class="tiny">Bigger step = faster, but can overshoot.</div>
-      </div>
+          <div class="rowCtrl">
+            <label>Rugosity / Octaves <span class="val" id="vOct">—</span></label>
+            <input id="oct" type="range" min="1" max="9" step="1" value="6"/>
+          </div>
 
-      <div class="card">
-        <div class="label">
-          <span>🧊 Smoothness</span>
-          <span id="smoothVal">0.70</span>
-        </div>
-        <input id="smooth" type="range" min="0" max="1" step="0.01" value="0.70" />
-        <div class="tiny">
-          Controls fBm octaves & frequency (smooth ↔ rough). (“Brownian field” vibe)
-        </div>
-      </div>
+          <div class="rowCtrl">
+            <label>Base Scale (smoothness) <span class="val" id="vScale">—</span></label>
+            <input id="scale" type="range" min="0.6" max="4.0" step="0.01" value="1.6"/>
+          </div>
 
-      <div class="card">
-        <div class="label">
-          <span>🎛️ Noise Amplitude</span>
-          <span id="ampVal">0.60</span>
-        </div>
-        <input id="amp" type="range" min="0" max="1.5" step="0.01" value="0.60" />
-        <div class="tiny">How “bumpy” the landscape is.</div>
-      </div>
+          <div class="rowCtrl">
+            <label>Persistence (amplitude falloff) <span class="val" id="vPers">—</span></label>
+            <input id="pers" type="range" min="0.35" max="0.80" step="0.01" value="0.55"/>
+          </div>
 
-      <div class="card">
-        <div class="label">
-          <span>🎲 Seed</span>
-          <span id="seedVal">1337</span>
-        </div>
-        <input id="seed" type="range" min="1" max="9999" step="1" value="1337" />
-        <div class="btnRow" style="margin-top:10px;">
-          <button id="newSeed">🎲 New random</button>
-          <button id="regen">🧱 Rebuild surface</button>
-        </div>
-        <div class="tiny" style="margin-top:8px;">
-          Seed changes the Brownian/fBm field (new function).
-        </div>
-      </div>
+          <div class="rowCtrl">
+            <label>Lacunarity (frequency growth) <span class="val" id="vLac">—</span></label>
+            <input id="lac" type="range" min="1.6" max="2.6" step="0.01" value="2.0"/>
+          </div>
 
-      <div class="card">
-        <div class="label">
-          <span>📍 Start X/Z</span>
-          <span class="tiny">or click surface</span>
+          <div class="btns">
+            <button id="newSeed">New landscape (seed)</button>
+            <button class="secondary" id="regen">Re-render</button>
+          </div>
         </div>
-        <div class="tiny">Click on the 3D surface to place start. Or use sliders:</div>
-        <div style="margin-top:10px;">
-          <div class="label"><span>X</span><span id="sxVal">2.600</span></div>
-          <input id="sx" type="range" min="-3.2" max="3.2" step="0.001" value="2.6" />
-        </div>
-        <div style="margin-top:10px;">
-          <div class="label"><span>Z</span><span id="szVal">1.900</span></div>
-          <input id="sz" type="range" min="-3.2" max="3.2" step="0.001" value="1.9" />
-        </div>
-        <div class="tiny" style="margin-top:8px;">
-          Different starts → local minima vs global minima demo.
-        </div>
-      </div>
 
-      <div class="card">
-        <div class="label">
-          <span>⏱️ Time Step</span>
-          <span id="tVal">0</span>
-        </div>
-        <input id="time" type="range" min="0" max="300" step="1" value="0" />
-        <div class="tiny">Scrub time like a video.</div>
-      </div>
+        <div class="group">
+          <div class="groupTitle">Optimizer</div>
 
-      <div class="card">
-        <div class="btnRow">
-          <button id="play">▶️ Play</button>
-          <button id="reset">🔁 Reset Run</button>
-        </div>
-        <div class="tiny" style="margin-top:8px;">
-          Tip: use Temperature + Cooling to escape local minima early.
-        </div>
-      </div>
+          <div class="rowCtrl">
+            <label>Mode <span class="val" id="vMode">—</span></label>
+            <input id="mode" type="range" min="0" max="1" step="1" value="0" />
+          </div>
 
-      <div class="card">
-        <div class="label"><span>🏁 Local vs 🏆 Global</span><span id="gapVal" class="pill">gap —</span></div>
-        <div class="tiny" id="optReadout">
-          Current: —<br/>
-          Global min: —<br/>
-          Final: —
-        </div>
-      </div>
+          <div class="rowCtrl">
+            <label>Learning rate (GD) <span class="val" id="vLR">—</span></label>
+            <input id="lr" type="range" min="0.001" max="0.12" step="0.001" value="0.03"/>
+          </div>
 
-      <div class="card">
-        <div class="label"><span>📈 Height vs Time</span><span id="hVal">—</span></div>
-        <canvas id="curve" width="320" height="140"></canvas>
-        <div class="tiny">Lower is better. Dot follows the scrubber.</div>
-      </div>
-    </div>
+          <div class="rowCtrl">
+            <label>Step size (SA proposal) <span class="val" id="vStep">—</span></label>
+            <input id="saStep" type="range" min="0.003" max="0.15" step="0.001" value="0.05"/>
+          </div>
 
-    <!-- Stop-motion controls -->
-    <div id="controlsLine" style="display:none;">
-      <div class="card">
-        <div class="label"><span>📸 Frame (scrub)</span><span id="t2Val">0</span></div>
-        <input id="time2" type="range" min="0" max="300" step="1" value="0" />
-        <div class="tiny">
-          Each step is a “photo frame”.<br/>
-          Zoom increases as you move forward.
+          <div class="rowCtrl">
+            <label>Temperature (SA) <span class="val" id="vTemp">—</span></label>
+            <input id="temp" type="range" min="0.001" max="1.5" step="0.001" value="0.35"/>
+          </div>
+
+          <div class="rowCtrl">
+            <label>Cooling (per step) <span class="val" id="vCool">—</span></label>
+            <input id="cool" type="range" min="0.990" max="0.9999" step="0.0001" value="0.9975"/>
+          </div>
+
+          <div class="rowCtrl">
+            <label>Steps / frame <span class="val" id="vSPF">—</span></label>
+            <input id="spf" type="range" min="1" max="30" step="1" value="8"/>
+          </div>
+
+          <div class="btns">
+            <button id="toggle">Run / Pause</button>
+            <button class="secondary" id="reset">Reset path</button>
+            <button class="danger" id="snapBest">Snap to best</button>
+          </div>
+        </div>
+
+        <div class="note">
+          <b>Metropolis rule (SA):</b> accept if ΔE ≤ 0, else accept with probability exp(-ΔE / T).
+          <br/><br/>
+          <b>Rugosity tip:</b> increasing <i>Octaves</i> injects higher-frequency detail → more local minima.
         </div>
       </div>
-      <div class="card">
-        <div class="tiny">
-          Tip: jump like 0 → 10 → 20 → 30 for screenshots.
-        </div>
-      </div>
-    </div>
+    </aside>
   </div>
 
-  <div id="view">
-    <div id="hud">Loading…</div>
+<script>
+/* ---------------------------
+   Seeded RNG
+--------------------------- */
+function mulberry32(seed){
+  let t = seed >>> 0;
+  return function(){
+    t += 0x6D2B79F5;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
-    <div id="mountainView"></div>
-
-    <div id="lineView">
-      <div id="linePanel">
-        <div class="panelTitle">📸 Stop-Motion Gradient Descent (zoom-in per frame)</div>
-        <div class="panelBody"><canvas id="cStop" class="pcanvas" width="1100" height="760"></canvas></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script type="module">
-  import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-
-  // ==========================
-  // MODE SWITCH
-  // ==========================
-  const btnMountain = document.getElementById("btnMountain");
-  const btnLine = document.getElementById("btnLine");
-  const controlsMountain = document.getElementById("controlsMountain");
-  const controlsLine = document.getElementById("controlsLine");
-  const mountainView = document.getElementById("mountainView");
-  const lineView = document.getElementById("lineView");
-  const hud = document.getElementById("hud");
-
-  function setMode(mode){
-    const isM = mode === "mountain";
-    btnMountain.classList.toggle("active", isM);
-    btnLine.classList.toggle("active", !isM);
-    controlsMountain.style.display = isM ? "" : "none";
-    controlsLine.style.display = isM ? "none" : "";
-    mountainView.style.display = isM ? "" : "none";
-    lineView.style.display = isM ? "none" : "block";
-    hud.textContent = isM ? "🏔️ Mountain Mode (click surface to set start)" : "📸 Stop-Motion Mode";
-    if (!isM) drawStopMotionFrame(parseInt(time2.value, 10));
+/* ---------------------------
+   2D Perlin Noise (classic gradient)
+   (compact implementation)
+--------------------------- */
+function makePerlin(seed){
+  const rand = mulberry32(seed);
+  const p = new Uint8Array(512);
+  const perm = new Uint8Array(256);
+  for (let i=0;i<256;i++) perm[i]=i;
+  // shuffle
+  for (let i=255;i>0;i--){
+    const j = (rand()*(i+1))|0;
+    const tmp = perm[i]; perm[i]=perm[j]; perm[j]=tmp;
   }
-  btnMountain.onclick = () => setMode("mountain");
-  btnLine.onclick = () => setMode("line");
+  for (let i=0;i<512;i++) p[i]=perm[i & 255];
 
-  // ==========================
-  // THREE SETUP
-  // ==========================
-  const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
-  renderer.setSize(mountainView.clientWidth, mountainView.clientHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  mountainView.appendChild(renderer.domElement);
-
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x05060a, 10, 28);
-
-  const camera = new THREE.PerspectiveCamera(55, mountainView.clientWidth/mountainView.clientHeight, 0.1, 100);
-  camera.position.set(4.5, 3.2, 5.2);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-  const key = new THREE.DirectionalLight(0xffffff, 0.85);
-  key.position.set(6, 10, 6);
-  scene.add(key);
-
-  function makeCheckerTexture(size=512, squares=12) {
-    const c = document.createElement("canvas");
-    c.width = c.height = size;
-    const ctx = c.getContext("2d");
-    const s = size / squares;
-    for (let y=0; y<squares; y++){
-      for (let x=0; x<squares; x++){
-        const even = (x+y) % 2 === 0;
-        ctx.fillStyle = even ? "#eaf7ff" : "#4bb3ff";
-        ctx.fillRect(x*s, y*s, s, s);
-      }
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(2.2, 2.2);
-    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    return tex;
+  function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+  function lerp(a,b,t){ return a + t*(b-a); }
+  function grad(hash,x,y){
+    // 8 directions
+    const h = hash & 7;
+    const u = h<4 ? x : y;
+    const v = h<4 ? y : x;
+    return ((h&1)?-u:u) + ((h&2)?-2*v:2*v);
   }
 
-  const LIM = 3.2;
-  const RES = 160;
+  function noise(x,y){
+    const X = Math.floor(x) & 255;
+    const Y = Math.floor(y) & 255;
+    const xf = x - Math.floor(x);
+    const yf = y - Math.floor(y);
+    const u = fade(xf);
+    const v = fade(yf);
 
-  // ==========================
-  // UI ELEMENTS
-  // ==========================
-  const tempEl = document.getElementById("temp");
-  const coolEl = document.getElementById("cool");
-  const noiseEl = document.getElementById("noise");
-  const lrEl = document.getElementById("lr");
-  const smoothEl = document.getElementById("smooth");
-  const ampEl = document.getElementById("amp");
-  const seedEl = document.getElementById("seed");
-  const newSeedBtn = document.getElementById("newSeed");
-  const regenBtn = document.getElementById("regen");
+    const aa = p[p[X] + Y];
+    const ab = p[p[X] + Y + 1];
+    const ba = p[p[X + 1] + Y];
+    const bb = p[p[X + 1] + Y + 1];
 
-  const sxEl = document.getElementById("sx");
-  const szEl = document.getElementById("sz");
-
-  const tempVal = document.getElementById("tempVal");
-  const coolVal = document.getElementById("coolVal");
-  const noiseVal = document.getElementById("noiseVal");
-  const lrVal = document.getElementById("lrVal");
-  const smoothVal = document.getElementById("smoothVal");
-  const ampVal = document.getElementById("ampVal");
-  const seedVal = document.getElementById("seedVal");
-  const sxVal = document.getElementById("sxVal");
-  const szVal = document.getElementById("szVal");
-
-  const timeEl = document.getElementById("time");
-  const playBtn = document.getElementById("play");
-  const resetBtn = document.getElementById("reset");
-  const tVal = document.getElementById("tVal");
-  const hVal = document.getElementById("hVal");
-
-  const optReadout = document.getElementById("optReadout");
-  const gapVal = document.getElementById("gapVal");
-
-  const curve = document.getElementById("curve");
-  const ctxCurve = curve.getContext("2d");
-
-  const time2 = document.getElementById("time2");
-  const t2Val = document.getElementById("t2Val");
-
-  // ==========================
-  // HELPERS
-  // ==========================
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-
-  // Deterministic RNG (LCG)
-  function makeRng(seed){
-    let s = seed >>> 0;
-    return function(){
-      s = (1664525 * s + 1013904223) >>> 0;
-      return s / 4294967296;
-    };
+    const x1 = lerp(grad(aa, xf,   yf),   grad(ba, xf-1, yf),   u);
+    const x2 = lerp(grad(ab, xf,   yf-1), grad(bb, xf-1, yf-1), u);
+    // normalize-ish to ~[-1,1]
+    return lerp(x1, x2, v) * 0.25;
   }
 
-  // Gaussian-ish using Box-Muller (deterministic from RNG)
-  function makeRandn(rng){
-    return function(){
-      const u1 = Math.max(rng(), 1e-12);
-      const u2 = rng();
-      const r = Math.sqrt(-2*Math.log(u1));
-      return r * Math.cos(2*Math.PI*u2);
-    };
-  }
+  return { noise };
+}
 
-  // Hash -> [0,1)
-  function hash2i(ix, iz, seed){
-    let h = ix * 374761393 + iz * 668265263 + seed * 700001;
-    h = (h ^ (h >> 13)) >>> 0;
-    h = (h * 1274126177) >>> 0;
-    return ((h ^ (h >> 16)) >>> 0) / 4294967296;
-  }
+/* ---------------------------
+   fBM landscape
+--------------------------- */
+function makeLandscape(seed){
+  const perlin = makePerlin(seed);
 
-  // Value noise w/ smooth interpolation
-  function fade(t){ return t*t*(3 - 2*t); }
-  function lerp(a,b,t){ return a + (b-a)*t; }
+  const params = {
+    octaves: 6,
+    baseScale: 1.6,     // bigger => smoother (lower frequency overall)
+    persistence: 0.55,
+    lacunarity: 2.0
+  };
 
-  function valueNoise2D(x, z, seed){
-    const ix = Math.floor(x);
-    const iz = Math.floor(z);
-    const fx = x - ix;
-    const fz = z - iz;
-
-    const v00 = hash2i(ix,   iz,   seed);
-    const v10 = hash2i(ix+1, iz,   seed);
-    const v01 = hash2i(ix,   iz+1, seed);
-    const v11 = hash2i(ix+1, iz+1, seed);
-
-    const u = fade(fx);
-    const v = fade(fz);
-    const a = lerp(v00, v10, u);
-    const b = lerp(v01, v11, u);
-    return lerp(a, b, v) * 2 - 1; // [-1,1]
-  }
-
-  // fBm (fractional brownian motion) using value noise
-  function fbm2D(x, z, seed, octaves, lacunarity, gain){
+  function fbm(x,y){
     let amp = 1.0;
-    let freq = 1.0;
+    let freq = 1.0 / params.baseScale;
     let sum = 0.0;
     let norm = 0.0;
-
-    for (let i=0; i<octaves; i++){
-      sum += amp * valueNoise2D(x*freq, z*freq, seed + i*101);
+    for (let i=0;i<params.octaves;i++){
+      sum  += amp * perlin.noise(x*freq, y*freq);
       norm += amp;
-      amp *= gain;
-      freq *= lacunarity;
+      amp *= params.persistence;
+      freq *= params.lacunarity;
     }
-    return sum / Math.max(1e-9, norm);
+    return sum / norm; // ~[-1,1]
   }
 
-  // ==========================
-  // LANDSCAPE FUNCTION (base + Brownian field)
-  // ==========================
-  function getParams(){
-    return {
-      T0: parseFloat(tempEl.value),
-      alpha: parseFloat(coolEl.value),
-      sigma: parseFloat(noiseEl.value),
-      lr: parseFloat(lrEl.value),
-      smooth: parseFloat(smoothEl.value),
-      amp: parseFloat(ampEl.value),
-      seed: parseInt(seedEl.value, 10),
-      sx: parseFloat(sxEl.value),
-      sz: parseFloat(szEl.value),
-    };
+  // A little “basin shaping” so global structure exists
+  function energy(u,v){
+    // u,v in [0,1]
+    const x = (u*2-1), y = (v*2-1);
+    const r2 = x*x + y*y;
+
+    // multi-scale field + gentle bowl + ridges
+    const n = fbm(u*6.0, v*6.0);
+    const ridge = Math.abs(fbm(u*3.2+10.1, v*3.2-7.3));
+    const bowl = 0.15 * r2;
+
+    // Energy to MINIMIZE (lower is better)
+    // Make ridges increase energy.
+    return 0.85*n + 0.55*ridge + bowl;
   }
 
-  function derivedNoiseSettings(smooth){
-    // smooth=1 => smoother (fewer octaves, lower frequency)
-    // smooth=0 => rougher (more octaves, higher frequency)
-    const oct = Math.round(2 + (1 - smooth) * 6);       // 2..8
-    const lac = 1.6 + (1 - smooth) * 1.0;               // 1.6..2.6
-    const gain = 0.65 - (smooth) * 0.15;                // 0.50..0.65
-    const baseFreq = 0.55 + (1 - smooth) * 1.65;        // 0.55..2.20
-    return { oct, lac, gain, baseFreq };
+  // Finite-difference gradient (central difference)
+  function grad(u,v){
+    const eps = 1e-3;
+    const u1 = Math.min(1, Math.max(0, u+eps));
+    const u0 = Math.min(1, Math.max(0, u-eps));
+    const v1 = Math.min(1, Math.max(0, v+eps));
+    const v0 = Math.min(1, Math.max(0, v-eps));
+    const du = (energy(u1,v) - energy(u0,v)) / (u1-u0 || eps);
+    const dv = (energy(u,v1) - energy(u,v0)) / (v1-v0 || eps);
+    return {du, dv};
   }
 
-  function fM(x, z){
-    const p = getParams();
-    const bowl = 0.18*(x*x + 1.4*z*z);
-    const waves = 0.35*Math.sin(1.2*x) * Math.cos(0.9*z);
+  return { params, energy, grad };
+}
 
-    // Brownian/fBm field
-    const ns = derivedNoiseSettings(p.smooth);
-    const n = fbm2D(x*ns.baseFreq, z*ns.baseFreq, p.seed, ns.oct, ns.lac, ns.gain);
+/* ---------------------------
+   UI + Simulation
+--------------------------- */
+const view = document.getElementById('view');
+const spark = document.getElementById('spark');
+const ctx = view.getContext('2d');
+const sctx = spark.getContext('2d', { alpha:true });
 
-    const dent = -0.55*Math.exp(-(x*x + z*z)/0.9);
-    return bowl + waves + dent + p.amp * 0.55 * n;
+const hudMode = document.getElementById('hudMode');
+const hudF = document.getElementById('hudF');
+const hudStep = document.getElementById('hudStep');
+const hudAcc = document.getElementById('hudAcc');
+const hudT = document.getElementById('hudT');
+const hudLR = document.getElementById('hudLR');
+
+const elOct = document.getElementById('oct');
+const elScale = document.getElementById('scale');
+const elPers = document.getElementById('pers');
+const elLac = document.getElementById('lac');
+const elMode = document.getElementById('mode');
+const elLR = document.getElementById('lr');
+const elSAStep = document.getElementById('saStep');
+const elTemp = document.getElementById('temp');
+const elCool = document.getElementById('cool');
+const elSPF = document.getElementById('spf');
+
+const vOct = document.getElementById('vOct');
+const vScale = document.getElementById('vScale');
+const vPers = document.getElementById('vPers');
+const vLac = document.getElementById('vLac');
+const vMode = document.getElementById('vMode');
+const vLR = document.getElementById('vLR');
+const vStep = document.getElementById('vStep');
+const vTemp = document.getElementById('vTemp');
+const vCool = document.getElementById('vCool');
+const vSPF = document.getElementById('vSPF');
+
+const btnNewSeed = document.getElementById('newSeed');
+const btnRegen = document.getElementById('regen');
+const btnToggle = document.getElementById('toggle');
+const btnReset = document.getElementById('reset');
+const btnSnapBest = document.getElementById('snapBest');
+
+let W=0,H=0, dpr=1;
+
+function resize(){
+  dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const r = view.getBoundingClientRect();
+  W = Math.floor(r.width * dpr);
+  H = Math.floor(r.height * dpr);
+  view.width = W;
+  view.height = H;
+  needsRerender = true;
+}
+window.addEventListener('resize', resize);
+
+/* State */
+let seed = (Date.now() ^ 0x9e3779b9) >>> 0;
+let land = makeLandscape(seed);
+let running = false;
+
+let pos = {u:0.35, v:0.55};
+let start = {...pos};
+let best = {...pos};
+let bestE = Infinity;
+
+let T = parseFloat(elTemp.value);
+let accepted = 0, proposed = 0;
+let stepCount = 0;
+
+let trail = [];
+let energies = []; // for sparkline
+
+let needsRerender = true;
+let cachedImage = null;
+let cachedMinMax = {min:0,max:1};
+
+function clamp01(x){ return Math.min(1, Math.max(0, x)); }
+
+function setFromControls(){
+  land.params.octaves = parseInt(elOct.value, 10);
+  land.params.baseScale = parseFloat(elScale.value);
+  land.params.persistence = parseFloat(elPers.value);
+  land.params.lacunarity = parseFloat(elLac.value);
+}
+
+function modeName(){
+  return (parseInt(elMode.value,10)===0) ? "Gradient Descent" : "Simulated Annealing";
+}
+
+function updateLabels(){
+  vOct.textContent = elOct.value;
+  vScale.textContent = (+elScale.value).toFixed(2);
+  vPers.textContent = (+elPers.value).toFixed(2);
+  vLac.textContent = (+elLac.value).toFixed(2);
+
+  vMode.textContent = (parseInt(elMode.value,10)===0) ? "GD" : "SA";
+  vLR.textContent = (+elLR.value).toFixed(3);
+  vStep.textContent = (+elSAStep.value).toFixed(3);
+  vTemp.textContent = (+elTemp.value).toFixed(3);
+  vCool.textContent = (+elCool.value).toFixed(4);
+  vSPF.textContent = elSPF.value;
+
+  hudMode.textContent = vMode.textContent;
+  hudLR.textContent = (+elLR.value).toFixed(3);
+  hudT.textContent = (parseInt(elMode.value,10)===1) ? T.toFixed(3) : "—";
+  hudStep.textContent = String(stepCount);
+  hudAcc.textContent = (parseInt(elMode.value,10)===1) ? `${accepted}/${Math.max(1,proposed)}` : "—";
+  hudF.textContent = land.energy(pos.u,pos.v).toFixed(4);
+}
+
+function resetPath(keepStart=false){
+  stepCount = 0;
+  accepted = 0;
+  proposed = 0;
+  T = parseFloat(elTemp.value);
+  if (!keepStart){
+    pos = {u: start.u, v: start.v};
+  }
+  best = {...pos};
+  bestE = land.energy(best.u,best.v);
+  trail = [{...pos}];
+  energies = [bestE];
+  updateLabels();
+}
+
+function newLandscape(newSeed){
+  seed = newSeed >>> 0;
+  land = makeLandscape(seed);
+  setFromControls();
+  needsRerender = true;
+  resetPath(true);
+}
+
+function colorMap(t){
+  // t in [0,1] -> dark scientific heat
+  // Use piecewise without hardcoded palette names; still deterministic:
+  // We'll build a smooth ramp using RGB mix.
+  const a = [10, 18, 40];     // deep navy
+  const b = [16, 36, 88];     // blue
+  const c = [70, 110, 190];   // mid
+  const d = [170, 210, 255];  // light cyan
+  const e = [245, 220, 130];  // warm highlight
+
+  function mix(p,q,x){
+    return [
+      p[0] + (q[0]-p[0])*x,
+      p[1] + (q[1]-p[1])*x,
+      p[2] + (q[2]-p[2])*x
+    ];
+  }
+  let rgb;
+  if (t < 0.35) rgb = mix(a,b, t/0.35);
+  else if (t < 0.70) rgb = mix(b,c, (t-0.35)/0.35);
+  else if (t < 0.90) rgb = mix(c,d, (t-0.70)/0.20);
+  else rgb = mix(d,e, (t-0.90)/0.10);
+
+  // subtle contrast curve
+  const gamma = 0.95;
+  rgb = rgb.map(v => 255*Math.pow(v/255, gamma));
+  return `rgb(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0})`;
+}
+
+function renderLandscape(){
+  const img = ctx.createImageData(W,H);
+  let min = Infinity, max = -Infinity;
+
+  // sample energy field
+  const E = new Float32Array(W*H);
+  let k=0;
+  for (let y=0; y<H; y++){
+    const v = y/(H-1);
+    for (let x=0; x<W; x++){
+      const u = x/(W-1);
+      const e = land.energy(u,v);
+      E[k++] = e;
+      if (e<min) min=e;
+      if (e>max) max=e;
+    }
+  }
+  cachedMinMax = {min,max};
+
+  // paint with lighting-like shading (fake normal from gradients)
+  const range = (max-min) || 1;
+  k=0;
+  for (let y=0; y<H; y++){
+    for (let x=0; x<W; x++){
+      const idx = (y*W + x);
+      const e = E[idx];
+      const t = (e - min)/range;
+
+      // finite neighbor difference for “contour shading”
+      const ex = E[Math.min(W*H-1, idx+1)] - E[Math.max(0, idx-1)];
+      const ey = E[Math.min(W*H-1, idx+W)] - E[Math.max(0, idx-W)];
+      const shade = 0.5 + 0.5 / (1.0 + 18.0*Math.hypot(ex,ey)); // higher grad => darker
+      const contour = 0.08*Math.sin(40*t*6.28318); // subtle contour banding
+
+      // map to rgb
+      // get base color then apply shade
+      // (fast-ish: parse strings avoided; manual RGB ramp)
+      const c = (function(t){
+        const a=[10,18,40], b=[16,36,88], c=[70,110,190], d=[170,210,255], e=[245,220,130];
+        const mix=(p,q,x)=>[p[0]+(q[0]-p[0])*x,p[1]+(q[1]-p[1])*x,p[2]+(q[2]-p[2])*x];
+        let rgb;
+        if(t<0.35) rgb=mix(a,b,t/0.35);
+        else if(t<0.70) rgb=mix(b,c,(t-0.35)/0.35);
+        else if(t<0.90) rgb=mix(c,d,(t-0.70)/0.20);
+        else rgb=mix(d,e,(t-0.90)/0.10);
+        return rgb;
+      })(t);
+
+      let r = c[0], g=c[1], b=c[2];
+      const s = Math.max(0.55, Math.min(1.10, shade + contour));
+      r *= s; g *= s; b *= s;
+
+      img.data[k++] = r|0;
+      img.data[k++] = g|0;
+      img.data[k++] = b|0;
+      img.data[k++] = 255;
+    }
   }
 
-  function gradM(x, z){
-    // finite difference gradient
-    const e = 0.0015;
-    const fx1 = fM(x+e, z), fx0 = fM(x-e, z);
-    const fz1 = fM(x, z+e), fz0 = fM(x, z-e);
-    return { gx: (fx1 - fx0)/(2*e), gz: (fz1 - fz0)/(2*e) };
+  cachedImage = img;
+  needsRerender = false;
+}
+
+function draw(){
+  if (needsRerender || !cachedImage) renderLandscape();
+  ctx.putImageData(cachedImage, 0, 0);
+
+  // overlay grid
+  ctx.save();
+  ctx.globalAlpha = 0.10;
+  ctx.strokeStyle = "rgba(125,211,252,.35)";
+  ctx.lineWidth = 1;
+  const grid = 10;
+  for(let i=1;i<grid;i++){
+    const x = i*W/grid;
+    const y = i*H/grid;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  ctx.restore();
+
+  // trail
+  ctx.save();
+  ctx.lineWidth = 2*dpr;
+  ctx.strokeStyle = "rgba(125,211,252,.85)";
+  ctx.globalAlpha = 0.75;
+  ctx.beginPath();
+  for (let i=0;i<trail.length;i++){
+    const p = trail[i];
+    const x = p.u*(W-1), y = p.v*(H-1);
+    if (i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  function dot(u,v, r, fill, stroke){
+    const x = u*(W-1), y = v*(H-1);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if(stroke){
+      ctx.lineWidth = 2*dpr;
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
-  // ==========================
-  // GEOMETRY + MESH
-  // ==========================
-  const geo = new THREE.PlaneGeometry(LIM*2, LIM*2, RES, RES);
-  geo.rotateX(-Math.PI/2);
+  // start / best / current
+  dot(start.u, start.v, 6.5*dpr, "rgba(251,113,133,.95)", "rgba(0,0,0,.35)");
+  dot(best.u, best.v,   6.5*dpr, "rgba(52,211,153,.95)", "rgba(0,0,0,.35)");
+  dot(pos.u, pos.v,     6.5*dpr, "rgba(125,211,252,.95)", "rgba(0,0,0,.35)");
 
-  const surface = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    map: makeCheckerTexture(),
-    roughness: 0.85,
-    metalness: 0.0,
-  }));
-  scene.add(surface);
+  // sparkline energy
+  drawSpark();
+}
 
-  const ball = new THREE.Mesh(
-    new THREE.SphereGeometry(0.14, 32, 32),
-    new THREE.MeshStandardMaterial({ color: 0xff5a7a, roughness: 0.25 })
-  );
-  scene.add(ball);
+function drawSpark(){
+  const w = spark.width, h = spark.height;
+  sctx.clearRect(0,0,w,h);
+  if (energies.length < 2) return;
 
-  // global min marker (trophy)
-  const trophy = new THREE.Mesh(
-    new THREE.ConeGeometry(0.14, 0.45, 16),
-    new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.35 })
-  );
-  trophy.rotation.x = Math.PI;
-  scene.add(trophy);
+  let min=Infinity, max=-Infinity;
+  for (const e of energies){ if(e<min)min=e; if(e>max)max=e; }
+  const range = (max-min)||1;
 
-  // final point marker (flag)
-  const flag = new THREE.Mesh(
-    new THREE.ConeGeometry(0.10, 0.35, 14),
-    new THREE.MeshStandardMaterial({ color: 0x9bf6ff, roughness: 0.35 })
-  );
-  flag.rotation.x = Math.PI;
-  scene.add(flag);
-
-  const trailMat = new THREE.LineBasicMaterial({ color: 0xff7a8f });
-  let trailLine = null;
-  function setTrail(points){
-    if (trailLine) scene.remove(trailLine);
-    trailLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), trailMat);
-    scene.add(trailLine);
+  // background grid
+  sctx.save();
+  sctx.globalAlpha = 0.35;
+  sctx.strokeStyle = "rgba(125,211,252,.22)";
+  sctx.lineWidth = 1;
+  for(let i=1;i<5;i++){
+    const y = i*h/5;
+    sctx.beginPath(); sctx.moveTo(0,y); sctx.lineTo(w,y); sctx.stroke();
   }
+  sctx.restore();
 
-  // ==========================
-  // GLOBAL MIN COMPUTE
-  // ==========================
-  let globalMin = { x:0, z:0, y:Infinity };
+  // line
+  sctx.save();
+  sctx.strokeStyle = "rgba(125,211,252,.95)";
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  const N = energies.length;
+  for(let i=0;i<N;i++){
+    const x = (i/(N-1))*w;
+    const t = (energies[i]-min)/range;
+    const y = (1-t)*(h-6)+3;
+    if(i===0) sctx.moveTo(x,y);
+    else sctx.lineTo(x,y);
+  }
+  sctx.stroke();
+  sctx.restore();
 
-  function computeGlobalMin(sampleN=90){
-    let best = { x:0, z:0, y:Infinity };
-    for (let i=0; i<sampleN; i++){
-      const x = -LIM + (2*LIM) * (i/(sampleN-1));
-      for (let j=0; j<sampleN; j++){
-        const z = -LIM + (2*LIM) * (j/(sampleN-1));
-        const y = fM(x,z);
-        if (y < best.y) best = { x, z, y };
+  // best dot
+  const bestIdx = energies.indexOf(Math.min(...energies));
+  const bx = (bestIdx/(energies.length-1))*w;
+  const bt = (energies[bestIdx]-min)/range;
+  const by = (1-bt)*(h-6)+3;
+
+  sctx.save();
+  sctx.fillStyle = "rgba(52,211,153,.95)";
+  sctx.beginPath(); sctx.arc(bx,by,3.2,0,Math.PI*2); sctx.fill();
+  sctx.restore();
+}
+
+function stepOnce(){
+  const mode = parseInt(elMode.value,10);
+  if (mode === 0){
+    // Gradient Descent
+    const lr = parseFloat(elLR.value);
+    const g = land.grad(pos.u, pos.v);
+    // normalized-ish step to avoid huge jumps
+    const gn = Math.hypot(g.du, g.dv) || 1;
+    const du = g.du/gn, dv = g.dv/gn;
+    pos.u = clamp01(pos.u - lr*du);
+    pos.v = clamp01(pos.v - lr*dv);
+
+    const e = land.energy(pos.u,pos.v);
+    trail.push({...pos});
+    energies.push(e);
+
+    if (e < bestE){
+      bestE = e; best = {...pos};
+    }
+    stepCount++;
+  } else {
+    // Simulated Annealing with Metropolis
+    const stepSize = parseFloat(elSAStep.value);
+    const cool = parseFloat(elCool.value);
+
+    const curE = land.energy(pos.u,pos.v);
+
+    // propose
+    const rng = mulberry32((seed ^ (stepCount*2654435761))>>>0);
+    const ang = rng()*Math.PI*2;
+    const rad = stepSize * Math.sqrt(rng());
+    const pu = clamp01(pos.u + rad*Math.cos(ang));
+    const pv = clamp01(pos.v + rad*Math.sin(ang));
+    const newE = land.energy(pu,pv);
+    const dE = newE - curE;
+
+    proposed++;
+
+    let accept = false;
+    if (dE <= 0) accept = true;
+    else {
+      const p = Math.exp(-dE / Math.max(1e-9, T));
+      accept = (rng() < p);
+    }
+
+    if (accept){
+      accepted++;
+      pos.u = pu; pos.v = pv;
+      const e = newE;
+      trail.push({...pos});
+      energies.push(e);
+      if (e < bestE){
+        bestE = e; best = {...pos};
       }
-    }
-    globalMin = best;
-    trophy.position.set(best.x, best.y + 0.25, best.z);
-  }
-
-  // ==========================
-  // SURFACE REBUILD
-  // ==========================
-  function rebuildSurface(){
-    const pos = geo.attributes.position;
-    for (let i=0; i<pos.count; i++){
-      const vx = pos.getX(i);
-      const vz = pos.getZ(i);
-      pos.setY(i, fM(vx, vz));
-    }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-    computeGlobalMin(90);
-    computePath(); // run again on new surface
-  }
-
-  // ==========================
-  // PATH SIMULATION (Annealing)
-  // ==========================
-  let path = [];
-  let heights = [];
-  let playing = false;
-  let t = 0;
-  const STEPS = 300;
-
-  // acceptance probability for simulated annealing
-  function acceptMove(dE, T, rng){
-    if (dE <= 0) return true;
-    if (T <= 1e-9) return false;
-    const p = Math.exp(-dE / T);
-    return rng() < p;
-  }
-
-  function computePath(){
-    const p = getParams();
-    const rng = makeRng((p.seed * 2654435761) ^ Math.floor((p.lr*1e6) + (p.sigma*1e6) + (p.T0*1e6)));
-    const randn = makeRandn(rng);
-
-    let x = p.sx, z = p.sz;
-    path = [];
-    heights = [];
-
-    for (let i=0; i<=STEPS; i++){
-      const y = fM(x, z);
-      path.push({ x, z, y });
-      heights.push(y);
-
-      const g = gradM(x, z);
-
-      // propose next move (gradient + jitter)
-      const xProp = clamp(x - p.lr*g.gx + p.sigma*randn(), -LIM, LIM);
-      const zProp = clamp(z - p.lr*g.gz + p.sigma*randn(), -LIM, LIM);
-
-      const yProp = fM(xProp, zProp);
-      const dE = yProp - y;
-
-      const T = p.T0 * Math.pow(p.alpha, i);
-      if (acceptMove(dE, T, rng)){
-        x = xProp; z = zProp;
-      } else {
-        // reject: stay
-      }
-    }
-
-    timeEl.max = String(STEPS);
-    timeEl.value = "0";
-    time2.max = String(STEPS);
-    time2.value = "0";
-
-    t = 0;
-    updateAtT(0);
-    drawCurve();
-
-    // final marker
-    const last = path[STEPS];
-    flag.position.set(last.x, last.y + 0.22, last.z);
-
-    updateOptReadout();
-    if (lineView.style.display === "block") drawStopMotionFrame(0);
-  }
-
-  function updateOptReadout(){
-    const cur = path[t]?.y ?? NaN;
-    const fin = path[STEPS]?.y ?? NaN;
-    const g = globalMin?.y ?? NaN;
-    const gap = (fin - g);
-
-    optReadout.innerHTML =
-      `Current: <b>${isFinite(cur)?cur.toFixed(3):"—"}</b><br/>` +
-      `Global min: <b>${isFinite(g)?g.toFixed(3):"—"}</b> 🏆<br/>` +
-      `Final: <b>${isFinite(fin)?fin.toFixed(3):"—"}</b> 🏁`;
-
-    if (isFinite(gap)){
-      gapVal.textContent = `gap ${(gap>=0?"+":"")}${gap.toFixed(3)}`;
     } else {
-      gapVal.textContent = "gap —";
-    }
-  }
-
-  // ==========================
-  // CURVE DRAW
-  // ==========================
-  function drawCurve(){
-    const W = curve.width, H = curve.height;
-    ctxCurve.clearRect(0,0,W,H);
-    ctxCurve.fillStyle = "rgba(255,255,255,0.03)";
-    ctxCurve.fillRect(0,0,W,H);
-
-    let minY=Infinity, maxY=-Infinity;
-    for (const y of heights){ minY=Math.min(minY,y); maxY=Math.max(maxY,y); }
-
-    const pad=10;
-    const mapX = (i)=> pad + (i/STEPS)*(W-2*pad);
-    const mapY = (y)=>{
-      const a = (y-minY)/Math.max(1e-6,(maxY-minY));
-      return (H-pad) - a*(H-2*pad);
-    };
-
-    ctxCurve.beginPath();
-    ctxCurve.lineWidth=3;
-    ctxCurve.strokeStyle="rgba(120,200,255,0.9)";
-    for (let i=0;i<heights.length;i++){
-      const x=mapX(i), y=mapY(heights[i]);
-      if (i===0) ctxCurve.moveTo(x,y); else ctxCurve.lineTo(x,y);
-    }
-    ctxCurve.stroke();
-
-    const dx=mapX(t), dy=mapY(heights[t]);
-    ctxCurve.beginPath();
-    ctxCurve.fillStyle="rgba(255,90,122,0.95)";
-    ctxCurve.arc(dx,dy,6,0,Math.PI*2);
-    ctxCurve.fill();
-
-    ctxCurve.fillStyle="rgba(255,255,255,0.8)";
-    ctxCurve.font="12px system-ui";
-    ctxCurve.fillText("high ", 10, 14);
-    ctxCurve.fillText("low ", 10, H-6);
-  }
-
-  // ==========================
-  // UPDATE STEP
-  // ==========================
-  function updateAtT(i){
-    t = clamp(i, 0, STEPS);
-    const p = path[t];
-    ball.position.set(p.x, p.y + 0.12, p.z);
-
-    const pts=[];
-    for (let k=0;k<=t;k++){
-      const pk=path[k];
-      pts.push(new THREE.Vector3(pk.x, pk.y+0.08, pk.z));
-    }
-    setTrail(pts);
-
-    const par = getParams();
-    tempVal.textContent = par.T0.toFixed(3);
-    coolVal.textContent = par.alpha.toFixed(3);
-    noiseVal.textContent = par.sigma.toFixed(3);
-    lrVal.textContent = par.lr.toFixed(3);
-    smoothVal.textContent = par.smooth.toFixed(2);
-    ampVal.textContent = par.amp.toFixed(2);
-    seedVal.textContent = String(par.seed);
-    sxVal.textContent = par.sx.toFixed(3);
-    szVal.textContent = par.sz.toFixed(3);
-
-    tVal.textContent = String(t);
-    hVal.textContent = p.y.toFixed(3);
-
-    drawCurve();
-    updateOptReadout();
-  }
-
-  // ==========================
-  // EVENTS: re-run when params change
-  // ==========================
-  function rerun(){
-    playing=false;
-    playBtn.textContent="▶️ Play";
-    computePath();
-  }
-
-  tempEl.addEventListener("input", rerun);
-  coolEl.addEventListener("input", rerun);
-  noiseEl.addEventListener("input", rerun);
-  lrEl.addEventListener("input", rerun);
-
-  smoothEl.addEventListener("input", ()=>{
-    // smoothness changes the surface itself
-    rebuildSurface();
-  });
-  ampEl.addEventListener("input", ()=>{
-    rebuildSurface();
-  });
-  seedEl.addEventListener("input", ()=>{
-    rebuildSurface();
-  });
-
-  sxEl.addEventListener("input", rerun);
-  szEl.addEventListener("input", rerun);
-
-  newSeedBtn.addEventListener("click", ()=>{
-    const v = Math.floor(1 + Math.random()*9999);
-    seedEl.value = String(v);
-    rebuildSurface();
-  });
-
-  regenBtn.addEventListener("click", rebuildSurface);
-
-  timeEl.addEventListener("input", (e)=>{
-    playing=false;
-    playBtn.textContent="▶️ Play";
-    updateAtT(parseInt(e.target.value,10));
-    time2.value = String(t);
-    if (lineView.style.display === "block") drawStopMotionFrame(t);
-  });
-
-  playBtn.addEventListener("click", ()=>{
-    playing=!playing;
-    playBtn.textContent = playing ? "⏸ Pause" : "▶️ Play";
-  });
-
-  resetBtn.addEventListener("click", ()=>{
-    playing=false;
-    playBtn.textContent="▶️ Play";
-    computePath();
-  });
-
-  // ==========================
-  // CLICK-TO-SET START (raycast)
-  // ==========================
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-
-  function setStartFromWorldPoint(pt){
-    const x = clamp(pt.x, -LIM, LIM);
-    const z = clamp(pt.z, -LIM, LIM);
-    sxEl.value = String(x);
-    szEl.value = String(z);
-    rerun();
-  }
-
-  renderer.domElement.addEventListener("click", (e)=>{
-    // Only when in Mountain mode
-    if (mountainView.style.display === "none") return;
-
-    const rect = renderer.domElement.getBoundingClientRect();
-    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const ny = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
-    mouse.set(nx, ny);
-
-    raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObject(surface, false);
-    if (hits.length){
-      setStartFromWorldPoint(hits[0].point);
-      hud.textContent = `🏔️ Start set to x=${parseFloat(sxEl.value).toFixed(2)}, z=${parseFloat(szEl.value).toFixed(2)} (click again to move start)`;
-    }
-  });
-
-  // ==========================
-  // SIMPLE DRAG ORBIT (no controls lib)
-  // ==========================
-  const ORBIT_TARGET = new THREE.Vector3(0, 0.3, 0);
-  let userHasDragged = false;
-  let userDragging = false;
-  let lastX = 0, lastY = 0;
-  let azimuth = 0.0;
-  let polar = 1.05;
-  const radius = 7.4;
-
-  function applyOrbit(){
-    const sinP = Math.sin(polar);
-    camera.position.set(
-      ORBIT_TARGET.x + radius * sinP * Math.cos(azimuth),
-      ORBIT_TARGET.y + radius * Math.cos(polar),
-      ORBIT_TARGET.z + radius * sinP * Math.sin(azimuth)
-    );
-    camera.lookAt(ORBIT_TARGET);
-  }
-
-  {
-    const v = new THREE.Vector3().subVectors(camera.position, ORBIT_TARGET);
-    const r = v.length();
-    const p = Math.acos(clamp(v.y / Math.max(1e-9, r), -1, 1));
-    const a = Math.atan2(v.z, v.x);
-    polar = clamp(p, 0.25, 1.45);
-    azimuth = a;
-  }
-
-  renderer.domElement.addEventListener("mousedown", (e)=>{
-    if (e.button !== 0) return;
-    userDragging = true;
-    userHasDragged = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    renderer.domElement.style.cursor = "grabbing";
-  });
-
-  window.addEventListener("mouseup", ()=>{
-    userDragging = false;
-    renderer.domElement.style.cursor = "default";
-  });
-
-  window.addEventListener("mousemove", (e)=>{
-    if (!userDragging) return;
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-
-    const speed = 0.005;
-    azimuth -= dx * speed;
-    polar   -= dy * speed;
-    polar = clamp(polar, 0.25, 1.45);
-    applyOrbit();
-  });
-
-  // ==========================
-  // TICK LOOP
-  // ==========================
-  function tickMountain(){
-    if (playing){
-      const next = Math.min(STEPS, t+1);
-      timeEl.value = String(next);
-      updateAtT(next);
-      time2.value = String(next);
-      if (lineView.style.display === "block") drawStopMotionFrame(next);
-      if (next>=STEPS){ playing=false; playBtn.textContent="▶️ Play"; }
+      // still record energy for spark continuity (optional)
+      energies.push(curE);
     }
 
-    if (!userDragging && !userHasDragged){
-      const a = performance.now()*0.00015;
-      camera.position.set(6.5*Math.cos(a), 3.5, 6.5*Math.sin(a));
-      camera.lookAt(0,0.3,0);
-
-      const v = new THREE.Vector3().subVectors(camera.position, ORBIT_TARGET);
-      const r = v.length();
-      polar = clamp(Math.acos(clamp(v.y / Math.max(1e-9, r), -1, 1)), 0.25, 1.45);
-      azimuth = Math.atan2(v.z, v.x);
-    }
-
-    renderer.setSize(mountainView.clientWidth, mountainView.clientHeight);
-    camera.aspect = mountainView.clientWidth/mountainView.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.render(scene, camera);
-    requestAnimationFrame(tickMountain);
+    // cool
+    T *= cool;
+    stepCount++;
   }
 
-  // ==========================
-  // STOP-MOTION VIEW
-  // ==========================
-  const cStop = document.getElementById("cStop");
-  const ctxStop = cStop.getContext("2d");
+  // keep arrays bounded
+  const maxTrail = 2400;
+  if (trail.length > maxTrail) trail.splice(0, trail.length-maxTrail);
+  const maxE = 480;
+  if (energies.length > maxE) energies.splice(0, energies.length-maxE);
+}
 
-  function smoothstep(a,b,x){
-    const t = clamp((x-a)/(b-a), 0, 1);
-    return t*t*(3 - 2*t);
-  }
+/* Interaction */
+function canvasToUV(ev){
+  const r = view.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / r.width;
+  const y = (ev.clientY - r.top) / r.height;
+  return {u: clamp01(x), v: clamp01(y)};
+}
 
-  function zoomForFrame(k, total){
-    const alpha = smoothstep(0.0, 1.0, k / Math.max(1,total));
-    const minZoom = 55;
-    const maxZoom = 260;
-    return minZoom + alpha * (maxZoom - minZoom);
-  }
+view.addEventListener('click', (ev)=>{
+  const uv = canvasToUV(ev);
+  pos = {u: uv.u, v: uv.v};
+  start = {...pos};
+  resetPath(true);
+  draw();
+});
 
-  function drawStopMotionFrame(stepIndex){
-    const k = clamp(stepIndex, 0, STEPS);
-    t2Val.textContent = String(k);
+document.addEventListener('keydown', (e)=>{
+  if (e.code === 'Space'){ e.preventDefault(); running = !running; }
+  if (e.key.toLowerCase() === 'r'){ resetPath(false); }
+});
 
-    const W = cStop.width, H = cStop.height;
-    ctxStop.clearRect(0,0,W,H);
-    const grd = ctxStop.createLinearGradient(0,0,W,H);
-    grd.addColorStop(0, "rgba(132,58,180,0.88)");
-    grd.addColorStop(1, "rgba(26,20,70,0.98)");
-    ctxStop.fillStyle = grd;
-    ctxStop.fillRect(0,0,W,H);
+function onParamChange(reRender=false){
+  setFromControls();
+  updateLabels();
+  if (reRender) needsRerender = true;
+}
 
-    ctxStop.globalAlpha = 0.22;
-    ctxStop.strokeStyle = "rgba(255,255,255,0.25)";
-    ctxStop.lineWidth = 1;
-    const grid = 16;
-    for (let x=0; x<=W; x+=grid){ ctxStop.beginPath(); ctxStop.moveTo(x,0); ctxStop.lineTo(x,H); ctxStop.stroke(); }
-    for (let y=0; y<=H; y+=grid){ ctxStop.beginPath(); ctxStop.moveTo(0,y); ctxStop.lineTo(W,y); ctxStop.stroke(); }
-    ctxStop.globalAlpha = 1;
-
-    const zoom = zoomForFrame(k, STEPS);
-    const cxW = path[k].x;
-    const czW = path[k].z;
-
-    const mapX = (x)=> W/2 + (x - cxW) * zoom;
-    const mapY = (z)=> H/2 + (z - czW) * zoom;
-
-    const vign = ctxStop.createRadialGradient(W/2, H/2, 50, W/2, H/2, Math.max(W,H)/1.1);
-    vign.addColorStop(0, "rgba(0,0,0,0)");
-    vign.addColorStop(1, "rgba(0,0,0,0.35)");
-    ctxStop.fillStyle = vign;
-    ctxStop.fillRect(0,0,W,H);
-
-    ctxStop.globalAlpha = 0.55;
-    for (let r=0.25; r<=3.0; r+=0.16){
-      const alpha = 0.10 + 0.25*(r/3.0);
-      ctxStop.strokeStyle = `rgba(0,0,0,${alpha})`;
-      ctxStop.lineWidth = 2;
-      ctxStop.beginPath();
-      ctxStop.ellipse(W/2, H/2, r*zoom*1.55, r*zoom*1.05, 0, 0, Math.PI*2);
-      ctxStop.stroke();
-    }
-    ctxStop.globalAlpha = 1;
-
-    ctxStop.strokeStyle = "rgba(255,255,255,0.88)";
-    ctxStop.lineWidth = 3;
-    ctxStop.beginPath();
-    for (let i=0;i<=k;i++){
-      const px = mapX(path[i].x);
-      const py = mapY(path[i].z);
-      if (i===0) ctxStop.moveTo(px, py);
-      else ctxStop.lineTo(px, py);
-    }
-    ctxStop.stroke();
-
-    const bx = mapX(path[k].x);
-    const by = mapY(path[k].z);
-
-    ctxStop.fillStyle = "rgba(0,0,0,0.35)";
-    ctxStop.beginPath();
-    ctxStop.ellipse(bx+10, by+12, 22, 14, 0, 0, Math.PI*2);
-    ctxStop.fill();
-
-    ctxStop.fillStyle = "rgba(255,90,122,0.98)";
-    ctxStop.beginPath();
-    ctxStop.arc(bx, by, 18, 0, Math.PI*2);
-    ctxStop.fill();
-
-    ctxStop.fillStyle = "rgba(255,255,255,0.35)";
-    ctxStop.beginPath();
-    ctxStop.arc(bx-6, by-7, 6, 0, Math.PI*2);
-    ctxStop.fill();
-
-    ctxStop.fillStyle = "rgba(255,255,255,0.92)";
-    ctxStop.font = "18px system-ui";
-    ctxStop.fillText("Stop-Motion (Annealing / Roughness Demo)", 18, 32);
-
-    ctxStop.fillStyle = "rgba(255,255,255,0.78)";
-    ctxStop.font = "13px system-ui";
-    ctxStop.fillText("Scrub the slider to capture frames (zoom increases over time).", 18, 54);
-
-    ctxStop.fillStyle = "rgba(255,255,255,0.80)";
-    ctxStop.font = "13px system-ui";
-    ctxStop.fillText(`frame ${k}/${STEPS}  •  zoom ${(zoom/55).toFixed(2)}x`, 18, H-18);
-  }
-
-  time2.addEventListener("input", (e)=>{
-    const k = parseInt(e.target.value, 10);
-    drawStopMotionFrame(k);
+/* Wire controls */
+[elOct, elScale, elPers, elLac].forEach(el=>{
+  el.addEventListener('input', ()=>onParamChange(false));
+  el.addEventListener('change', ()=>{
+    onParamChange(true);
+    resetPath(true);
   });
+});
+[elMode, elLR, elSAStep, elTemp, elCool, elSPF].forEach(el=>{
+  el.addEventListener('input', ()=>{
+    if (el === elTemp) T = parseFloat(elTemp.value);
+    updateLabels();
+  });
+  el.addEventListener('change', ()=>{
+    if (el === elTemp) T = parseFloat(elTemp.value);
+    resetPath(true);
+  });
+});
 
-  // ==========================
-  // INIT
-  // ==========================
-  hud.textContent = "🏔️ Mountain Mode (click surface to set start)";
-  rebuildSurface();
-  tickMountain();
-  setMode("mountain");
+btnNewSeed.addEventListener('click', ()=>{
+  const s = (Date.now() ^ ((Math.random()*1e9)|0) ^ seed) >>> 0;
+  newLandscape(s);
+});
+btnRegen.addEventListener('click', ()=>{
+  needsRerender = true;
+  draw();
+});
+btnToggle.addEventListener('click', ()=>{
+  running = !running;
+});
+btnReset.addEventListener('click', ()=>{
+  resetPath(false);
+});
+btnSnapBest.addEventListener('click', ()=>{
+  pos = {...best};
+  resetPath(true);
+  draw();
+});
+
+/* Main loop */
+function tick(){
+  const spf = parseInt(elSPF.value,10);
+  if (running){
+    for (let i=0;i<spf;i++) stepOnce();
+  }
+  updateLabels();
+  draw();
+  requestAnimationFrame(tick);
+}
+
+/* init */
+resize();
+setFromControls();
+updateLabels();
+resetPath(true);
+tick();
 </script>
 </body>
 </html>
