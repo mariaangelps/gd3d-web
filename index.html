@@ -86,7 +86,7 @@
       background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.4));
     }
 
-    canvas{ display:block; width:100%; height:100%; }
+    canvas{ display:block; width:100%; height:100%; touch-action: none; }
 
     .hint{
       position:absolute;
@@ -1280,7 +1280,7 @@ view.addEventListener('pointerdown', (e)=>{
   cam.dragging = true;
   cam.lastX = e.clientX;
   cam.lastY = e.clientY;
-  cam.mode = e.shiftKey ? "pan" : "rotate";
+  cam.mode = (e.shiftKey || e.button === 2) ? "pan" : "rotate";
   view.setPointerCapture(e.pointerId);
 });
 
@@ -1294,20 +1294,23 @@ view.addEventListener('pointermove', (e)=>{
   cam.lastY = e.clientY;
 
   if (cam.mode === "pan"){
-    cam.panX += dx;
-    cam.panY += dy;
-  } else {
-    cam.yaw   += dx * 0.006;
-    cam.pitch += dy * 0.006;
-    // clamp pitch so you don't flip upside down
-    cam.pitch = Math.max(0.15, Math.min(1.45, cam.pitch));
-  }
+  const panSpeed = 1.0;      // súbelo si quieres más rápido
+  cam.panX += dx * panSpeed;
+  cam.panY += dy * panSpeed; // esto es “arriba/abajo”
+} else {
+  cam.yaw   += dx * 0.006;
+  cam.pitch += dy * 0.006;
+
+  // más rango para mirar “abajo y arriba”
+  cam.pitch = Math.max(-0.2, Math.min(1.55, cam.pitch));
+}
 });
 
 view.addEventListener('pointerup', (e)=>{
   cam.dragging = false;
 });
-
+// disable context menu so right-drag works
+view.addEventListener('contextmenu', (e)=> e.preventDefault());
 // wheel zoom
 view.addEventListener('wheel', (e)=>{
   if (parseInt(elViewMode.value,10) !== 1) return;
@@ -1360,8 +1363,11 @@ function onParamChange(fullRerender=false){
 });
 
 btnCenterCam.addEventListener('click', ()=>{
-  // simple “center” is just re-render (camera is fixed in this version)
-  needsRerender = true;
+  cam.yaw = -0.9;
+  cam.pitch = 0.85;
+  cam.zoom = 1.0;
+  cam.panX = 0.0;
+  cam.panY = 0.0;
 });
 
 btnNewSeed.addEventListener('click', ()=>{
