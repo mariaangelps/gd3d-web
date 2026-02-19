@@ -425,6 +425,12 @@
             <button id="toggle">Run / Pause</button>
             <button class="secondary" id="stepOne">Step</button>
             <button class="secondary" id="reset">Reset path</button>
+            <button class="secondary" id="replay">Replay (slow)</button>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(215,227,255,.9)">
+              <input type="checkbox" id="autoReplay" checked />
+              Auto-replay when stop
+            </label>
+
             <button class="danger" id="snapBest">Snap to best</button>
           </div>
         </div>
@@ -566,6 +572,8 @@ const elViewMode = document.getElementById('viewMode');
 const elZEx = document.getElementById('zEx');
 const elGridRes = document.getElementById('gridRes');
 const btnCenterCam = document.getElementById('centerCam');
+const btnReplay = document.getElementById('replay');
+const elAutoReplay = document.getElementById('autoReplay');
 
 const elOct = document.getElementById('oct');
 const elScale = document.getElementById('scale');
@@ -641,6 +649,10 @@ let stepCount = 0;
 
 let trail = [];
 let energies = [];
+let replaying = false;
+let replayT = 0;              // seconds
+let replaySpeed = 0.18;       // smaller = slower (tweak)
+let replayPath = [];          // snapshot of trail for replay
 
 let needsRerender = true;
 let cached2D = null; // ImageData for 2D
@@ -662,6 +674,48 @@ let cam = {
 };
 
 function clamp01(x){ return Math.min(1, Math.max(0, x)); }
+function smoothstep(t){
+  t = Math.max(0, Math.min(1, t));
+  return t*t*(3 - 2*t);
+}
+
+function startReplay(){
+  if (trail.length < 2) return;
+  replaying = true;
+  replayT = 0;
+  replayPath = trail.slice();   // freeze the path
+  running = false;
+  stepBudget = 0;
+}
+
+function stopReplay(){
+  replaying = false;
+}
+// Move camera pan so a given uv stays near center (3D only)
+function cameraFollowUV(u, v, strength=0.12){
+  if (parseInt(elViewMode.value,10) !== 1) return;
+
+  // where is the point currently on screen?
+  const s = uvToScreen3D(u, v);
+  const targetX = W*0.52;  // a bit right of center looks nicer
+  const targetY = H*0.52;
+
+  const dx = (targetX - s.x) / dpr;
+  const dy = (targetY - s.y) / dpr;
+
+  cam.panX += dx * strength;
+  cam.panY += dy * strength;
+}
+
+// Cinematic zoom (start wide, end closer)
+function cameraZoomCurve(alpha){
+  // alpha: 0..1 progress
+  const a = smoothstep(alpha);
+  const z0 = 0.85;
+  const z1 = 1.65;
+  return z0 + (z1 - z0) * a;
+}
+
 
 /* ---------- controls -> params ---------- */
 function setFromControls(){
@@ -1040,6 +1094,7 @@ function drawOverlay(){
   dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");
   dot(best.u, best.v,   6.8*dpr, "rgba(52,211,153,.95)");
   dot(posVis.u, posVis.v, 6.8*dpr, "rgba(125,211,252,.98)");
+  
   dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)");
 
 }
@@ -1378,6 +1433,7 @@ btnNewSeed.addEventListener('click', ()=>{
   const s = (Date.now() ^ ((Math.random()*1e9)|0) ^ seed) >>> 0;
   newLandscape(s);
 });
+btnReplay.addEventListener('click', startReplay);
 btnRegen.addEventListener('click', ()=>{ needsRerender = true; });
 btnStepOne.addEventListener('click', ()=>{
   running = false;
@@ -1385,7 +1441,16 @@ btnStepOne.addEventListener('click', ()=>{
   updateLabels();
   renderScene();
 });
-btnToggle.addEventListener('click', ()=>{ running = !running; });
+btnToggle.addEventListener('click', ()=>{
+  if (running){
+    running = false;
+    stepBudget = 0;
+    if (elAutoReplay?.checked) startReplay();
+  } else {
+    stopReplay();
+    running = true;
+  }
+});
 btnReset.addEventListener('click', ()=>{ resetPath(false); });
 btnSnapBest.addEventListener('click', ()=>{
   pos = {...best};
@@ -1412,6 +1477,36 @@ function tick(now = performance.now()){
     while (steps-- > 0) stepOnce();
   }
 
+  // --- Replay slow-motion (cinematic) ---
+  if (replaying && replayPath.length >= 2){
+    replayT += dt;
+
+    // progress 0..1 over time
+    const alpha = Math.min(1, replayT * replaySpeed);
+
+    // map alpha to index in path
+    const f = alpha * (replayPath.length - 1);
+    const i0 = Math.floor(f);
+    const i1 = Math.min(replayPath.length - 1, i0 + 1);
+    const t = f - i0;
+
+    // interpolate position along the recorded path
+    const p0 = replayPath[i0], p1 = replayPath[i1];
+    const uu = p0.u + (p1.u - p0.u) * t;
+    const vv = p0.v + (p1.v - p0.v) * t;
+
+    // drive visual dot
+    posVis.u = uu;
+    posVis.v = vv;
+
+    // cinematic camera
+    const zTarget = cameraZoomCurve(alpha);
+    cam.zoom += (zTarget - cam.zoom) * 0.08;     // smooth zoom
+    cameraFollowUV(uu, vv, 0.10);                // pan follow
+
+    // stop at end
+    if (alpha >= 1) replaying = false;
+  }
   updateLabels();
   // smooth visual motion (ball rolling feel)
   const follow = 1 - Math.exp(-dt * 18); // higher = snappier
