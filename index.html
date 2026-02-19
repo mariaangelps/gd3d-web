@@ -1034,6 +1034,8 @@ function drawOverlay(){
   dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");
   dot(best.u, best.v,   6.8*dpr, "rgba(52,211,153,.95)");
   dot(pos.u, pos.v,     6.8*dpr, "rgba(125,211,252,.98)");
+  dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)");
+
 }
 
 /* ---------- sparkline ---------- */
@@ -1103,7 +1105,6 @@ function renderScene(){
 
   drawOverlay();
   // global minimum marker (purple)
-  dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)");
   drawSpark();
 }
 
