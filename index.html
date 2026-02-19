@@ -982,15 +982,19 @@ function uvToScreen3D(u,v){
   const zEx = parseFloat(elZEx.value);
 
   // use grid min/max if available; fallback quick sample
-  const e = land.energy(u,v);
+  const n = grid.n;
+  const i = Math.max(0, Math.min(n-1, Math.round(u*(n-1))));
+  const j = Math.max(0, Math.min(n-1, Math.round(v*(n-1))));
+  const e = grid.h[j*n + i];
+
   const min = grid.min, max = grid.max;
   const range = (max-min)||1;
-  const t = (e-min)/range;
+  const t = (e - min)/range;
   const z = (t*2 - 1) * zEx;
 
-  const cx = W*0.5;
-  const cy = H*0.52;
-  const scale = Math.min(W,H) * 0.62;
+  const cx = W*0.5 + cam.panX*dpr;
+  const cy = H*0.52 + cam.panY*dpr;
+  const scale = Math.min(W,H) * 0.62 * cam.zoom;
 
   const p = isoProject(x,y,z);
   return {x: cx + p.x*scale, y: cy + p.y*scale};
