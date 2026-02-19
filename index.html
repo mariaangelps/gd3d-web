@@ -1,18 +1,14 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Gradient hello + Simulated Annealing (fBM Landscape)</title>
+  <title>GD + Simulated Annealing · fBM Landscape (2D/3D)</title>
   <style>
     :root{
       --bg:#0b1020;
-      --panel:#0f1731;
-      --panel2:#0b132b;
       --ink:#d7e3ff;
       --muted:#88a0d6;
-      --grid:#1b2a57;
       --accent:#7dd3fc;
       --good:#34d399;
       --warn:#fbbf24;
@@ -28,11 +24,13 @@
 
     html,body{height:100%}
     body{
-      margin:0; background:radial-gradient(1200px 800px at 30% 10%, #101a3a 0%, var(--bg) 55%, #050814 100%);
+      margin:0;
+      background:radial-gradient(1200px 800px at 30% 10%, #101a3a 0%, var(--bg) 55%, #050814 100%);
       color:var(--ink);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
       letter-spacing:.2px;
     }
+
     .wrap{
       display:grid;
       grid-template-columns: 1.35fr .65fr;
@@ -41,6 +39,7 @@
       box-sizing:border-box;
       height:100%;
     }
+
     .card{
       background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
       border:1px solid rgba(125, 211, 252, .14);
@@ -48,11 +47,13 @@
       box-shadow: 0 18px 40px rgba(0,0,0,.35);
       overflow:hidden;
     }
+
     .main{
       display:grid;
       grid-template-rows: auto 1fr auto;
       min-height:0;
     }
+
     .hdr{
       padding:14px 16px;
       display:flex;
@@ -62,6 +63,7 @@
       border-bottom:1px solid rgba(125,211,252,.12);
       background:linear-gradient(180deg, rgba(10,20,45,.85), rgba(10,20,45,.35));
     }
+
     .title{
       font-size:14px;
       font-weight:650;
@@ -70,17 +72,20 @@
       color:#cfe3ff;
       opacity:.95;
     }
+
     .sub{
       font-size:12px;
       color:var(--muted);
       opacity:.95;
       white-space:nowrap;
     }
+
     .canvasWrap{
       position:relative;
       min-height:0;
       background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.4));
     }
+
     canvas{ display:block; width:100%; height:100%; }
 
     .hint{
@@ -94,6 +99,7 @@
       border-radius:12px;
       backdrop-filter: blur(6px);
     }
+
     .hud{
       position:absolute;
       right:14px; top:12px;
@@ -104,14 +110,9 @@
       padding:10px 10px;
       border-radius:12px;
       backdrop-filter: blur(6px);
-      min-width:200px;
+      min-width:220px;
     }
-    .hud .row{
-      display:flex;
-      justify-content:space-between;
-      gap:8px;
-      margin:4px 0;
-    }
+    .hud .row{ display:flex; justify-content:space-between; gap:8px; margin:4px 0; }
     .hud .k{color:rgba(136,160,214,.95)}
     .hud .v{font-variant-numeric: tabular-nums; color:#e7f0ff}
 
@@ -120,6 +121,7 @@
       grid-template-rows: auto 1fr;
       min-height:0;
     }
+
     .mini{
       display:grid;
       gap:10px;
@@ -127,12 +129,14 @@
       overflow:auto;
       min-height:0;
     }
+
     .group{
       background:rgba(8,14,28,.55);
       border:1px solid rgba(125,211,252,.12);
       border-radius:14px;
       padding:10px 10px 8px;
     }
+
     .groupTitle{
       font-size:12px;
       color:rgba(207,227,255,.9);
@@ -140,12 +144,14 @@
       text-transform:uppercase;
       margin:0 0 8px 0;
     }
+
     .rowCtrl{
       display:grid;
       grid-template-columns: 1fr;
       gap:8px;
       margin:10px 0;
     }
+
     label{
       font-size:12px;
       color:rgba(215,227,255,.92);
@@ -153,12 +159,13 @@
       justify-content:space-between;
       gap:10px;
     }
+
     .val{
       color:rgba(136,160,214,.95);
       font-variant-numeric: tabular-nums;
     }
 
-    /* ===== PRO RANGE SLIDER (Observable/Bloomberg-ish) ===== */
+    /* ===== PRO RANGE SLIDER ===== */
     .rowCtrl input[type="range"]{
       width:100%;
       height: 28px;
@@ -168,14 +175,12 @@
       cursor: pointer;
       --p: 50%;
     }
+
     .rowCtrl input[type="range"]::-webkit-slider-runnable-track{
       height: 6px;
       border-radius: 999px;
-      background:
-        linear-gradient(90deg, var(--sliderFill) 0 var(--p), var(--sliderTrack) var(--p) 100%);
-      box-shadow:
-        0 0 0 1px rgba(125,211,252,.18) inset,
-        0 0 14px var(--sliderGlow);
+      background: linear-gradient(90deg, var(--sliderFill) 0 var(--p), var(--sliderTrack) var(--p) 100%);
+      box-shadow: 0 0 0 1px rgba(125,211,252,.18) inset, 0 0 14px var(--sliderGlow);
     }
     .rowCtrl input[type="range"]::-webkit-slider-thumb{
       -webkit-appearance: none;
@@ -184,20 +189,19 @@
       height: 16px;
       margin-top: -5px;
       border-radius: 999px;
-      background: radial-gradient(circle at 35% 35%, #ffffff, var(--sliderThumb));
+      background: radial-gradient(circle at 35% 35%, #ffffff, rgba(231,240,255,.92));
       border: 1px solid var(--sliderThumbEdge);
       box-shadow:
         0 0 0 5px rgba(125,211,252,.10),
         0 10px 22px rgba(0,0,0,.45),
         0 0 18px rgba(125,211,252,.35);
     }
+
     .rowCtrl input[type="range"]::-moz-range-track{
       height: 6px;
       border-radius: 999px;
       background: var(--sliderTrack);
-      box-shadow:
-        0 0 0 1px rgba(125,211,252,.18) inset,
-        0 0 14px var(--sliderGlow);
+      box-shadow: 0 0 0 1px rgba(125,211,252,.18) inset, 0 0 14px var(--sliderGlow);
     }
     .rowCtrl input[type="range"]::-moz-range-progress{
       height: 6px;
@@ -208,18 +212,12 @@
       width: 16px;
       height: 16px;
       border-radius: 999px;
-      background: radial-gradient(circle at 35% 35%, #ffffff, var(--sliderThumb));
+      background: radial-gradient(circle at 35% 35%, #ffffff, rgba(231,240,255,.92));
       border: 1px solid var(--sliderThumbEdge);
       box-shadow:
         0 0 0 5px rgba(125,211,252,.10),
         0 10px 22px rgba(0,0,0,.45),
         0 0 18px rgba(125,211,252,.35);
-    }
-    .rowCtrl input[type="range"]:focus{ outline:none; }
-    .rowCtrl input[type="range"]:focus::-webkit-slider-runnable-track{
-      box-shadow:
-        0 0 0 1px rgba(125,211,252,.28) inset,
-        0 0 20px rgba(125,211,252,.45);
     }
 
     .btns{
@@ -228,6 +226,7 @@
       gap:8px;
       margin-top:8px;
     }
+
     button{
       background:linear-gradient(180deg, rgba(125,211,252,.22), rgba(125,211,252,.10));
       color:rgba(231,240,255,.95);
@@ -260,6 +259,7 @@
       background:linear-gradient(180deg, rgba(10,20,45,.25), rgba(10,20,45,.55));
       gap:12px;
     }
+
     .legend{
       display:flex;
       gap:10px;
@@ -273,6 +273,7 @@
     .dot.a{background:var(--warn)}
     .dot.b{background:var(--bad)}
     .dot.c{background:var(--accent)}
+
     .kbd{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size:11px;
@@ -282,6 +283,7 @@
       background:rgba(8,14,28,.55);
       color:rgba(231,240,255,.92);
     }
+
     .note{
       font-size:12px;
       color:rgba(136,160,214,.95);
@@ -294,14 +296,15 @@
   <div class="wrap">
     <section class="card main">
       <div class="hdr">
-        <div class="title">Procedural Landscape · fBM · Optimization</div>
-        <div class="sub">Click to set start · Compare local vs global minima</div>
+        <div class="title">Procedural Landscape · fBM (Brownian Field) · Optimization</div>
+        <div class="sub">Click to set start · 2D/3D · Local vs Global</div>
       </div>
 
       <div class="canvasWrap">
         <canvas id="view"></canvas>
 
-        <div class="hud" id="hud">
+        <div class="hud">
+          <div class="row"><span class="k">View</span><span class="v" id="hudView">—</span></div>
           <div class="row"><span class="k">Mode</span><span class="v" id="hudMode">—</span></div>
           <div class="row"><span class="k">f(x,y)</span><span class="v" id="hudF">—</span></div>
           <div class="row"><span class="k">Step</span><span class="v" id="hudStep">—</span></div>
@@ -311,7 +314,7 @@
         </div>
 
         <div class="hint">
-          <div><span class="kbd">Click</span> set start · <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset path</div>
+          <div><span class="kbd">Click</span> set start · <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset</div>
         </div>
       </div>
 
@@ -319,20 +322,43 @@
         <div class="legend">
           <div class="tag"><span class="dot c"></span>Current</div>
           <div class="tag"><span class="dot g"></span>Best found</div>
-          <div class="tag"><span class="dot a"></span>SA proposed</div>
           <div class="tag"><span class="dot b"></span>Start</div>
         </div>
-        <canvas id="spark" width="220" height="44" style="border-radius:10px; border:1px solid rgba(125,211,252,.12); background:rgba(8,14,28,.55)"></canvas>
+        <canvas id="spark" width="220" height="44"
+          style="border-radius:10px; border:1px solid rgba(125,211,252,.12); background:rgba(8,14,28,.55)"></canvas>
       </div>
     </section>
 
     <aside class="card panel">
       <div class="hdr">
         <div class="title">Controls</div>
-        <div class="sub">Dark · scientific · interactive</div>
+        <div class="sub">Sliders · SA temperature · Smoothness</div>
       </div>
 
       <div class="mini">
+        <div class="group">
+          <div class="groupTitle">View</div>
+
+          <div class="rowCtrl">
+            <label>View (0=2D,1=3D) <span class="val" id="vView">—</span></label>
+            <input id="viewMode" type="range" min="0" max="1" step="1" value="1" />
+          </div>
+
+          <div class="rowCtrl">
+            <label>Vertical exaggeration <span class="val" id="vZ">—</span></label>
+            <input id="zEx" type="range" min="0.2" max="3.0" step="0.01" value="1.35" />
+          </div>
+
+          <div class="rowCtrl">
+            <label>3D grid resolution <span class="val" id="vRes">—</span></label>
+            <input id="gridRes" type="range" min="40" max="140" step="1" value="90" />
+          </div>
+
+          <div class="btns">
+            <button class="secondary" id="centerCam">Center</button>
+          </div>
+        </div>
+
         <div class="group">
           <div class="groupTitle">Landscape (fBM)</div>
 
@@ -347,12 +373,12 @@
           </div>
 
           <div class="rowCtrl">
-            <label>Persistence (amplitude falloff) <span class="val" id="vPers">—</span></label>
+            <label>Persistence <span class="val" id="vPers">—</span></label>
             <input id="pers" type="range" min="0.35" max="0.80" step="0.01" value="0.55"/>
           </div>
 
           <div class="rowCtrl">
-            <label>Lacunarity (frequency growth) <span class="val" id="vLac">—</span></label>
+            <label>Lacunarity <span class="val" id="vLac">—</span></label>
             <input id="lac" type="range" min="1.6" max="2.6" step="0.01" value="2.0"/>
           </div>
 
@@ -372,17 +398,17 @@
 
           <div class="rowCtrl">
             <label>Learning rate (GD) <span class="val" id="vLR">—</span></label>
-            <input id="lr" type="range" min="0.001" max="0.12" step="0.001" value="0.03"/>
+            <input id="lr" type="range" min="0.001" max="0.10" step="0.001" value="0.02"/>
           </div>
 
           <div class="rowCtrl">
-            <label>Step size (SA proposal) <span class="val" id="vStep">—</span></label>
-            <input id="saStep" type="range" min="0.003" max="0.15" step="0.001" value="0.05"/>
+            <label>SA proposal step <span class="val" id="vStep">—</span></label>
+            <input id="saStep" type="range" min="0.003" max="0.20" step="0.001" value="0.06"/>
           </div>
 
           <div class="rowCtrl">
             <label>Temperature (SA) <span class="val" id="vTemp">—</span></label>
-            <input id="temp" type="range" min="0.001" max="1.5" step="0.001" value="0.35"/>
+            <input id="temp" type="range" min="0.001" max="1.8" step="0.001" value="0.45"/>
           </div>
 
           <div class="rowCtrl">
@@ -392,7 +418,7 @@
 
           <div class="rowCtrl">
             <label>Steps / frame <span class="val" id="vSPF">—</span></label>
-            <input id="spf" type="range" min="1" max="30" step="1" value="8"/>
+            <input id="spf" type="range" min="1" max="24" step="1" value="8"/>
           </div>
 
           <div class="btns">
@@ -403,18 +429,16 @@
         </div>
 
         <div class="note">
-          <b>Metropolis rule (SA):</b> accept if ΔE ≤ 0, else accept with probability exp(-ΔE / T).
+          <b>SA (Metropolis):</b> accept if ΔE ≤ 0 else accept with probability exp(-ΔE/T).
           <br/><br/>
-          <b>Rugosity tip:</b> increasing <i>Octaves</i> injects higher-frequency detail → more local minima.
+          <b>Tip:</b> more <i>Octaves</i> ⇒ more local minima ⇒ GD gets trapped; SA can escape early with higher T.
         </div>
       </div>
     </aside>
   </div>
 
 <script>
-/* ---------------------------
-   Seeded RNG
---------------------------- */
+/* ---------- seeded rng ---------- */
 function mulberry32(seed){
   let t = seed >>> 0;
   return function(){
@@ -425,9 +449,7 @@ function mulberry32(seed){
   };
 }
 
-/* ---------------------------
-   2D Perlin Noise
---------------------------- */
+/* ---------- 2D Perlin ---------- */
 function makePerlin(seed){
   const rand = mulberry32(seed);
   const p = new Uint8Array(512);
@@ -447,7 +469,6 @@ function makePerlin(seed){
     const v = h<4 ? y : x;
     return ((h&1)?-u:u) + ((h&2)?-2*v:2*v);
   }
-
   function noise(x,y){
     const X = Math.floor(x) & 255;
     const Y = Math.floor(y) & 255;
@@ -463,15 +484,12 @@ function makePerlin(seed){
 
     const x1 = lerp(grad(aa, xf,   yf),   grad(ba, xf-1, yf),   u);
     const x2 = lerp(grad(ab, xf,   yf-1), grad(bb, xf-1, yf-1), u);
-    return lerp(x1, x2, v) * 0.25;
+    return lerp(x1, x2, v) * 0.25; // ~[-1,1]
   }
-
   return { noise };
 }
 
-/* ---------------------------
-   fBM landscape
---------------------------- */
+/* ---------- fBM landscape (brownian field) ---------- */
 function makeLandscape(seed){
   const perlin = makePerlin(seed);
 
@@ -485,8 +503,7 @@ function makeLandscape(seed){
   function fbm(x,y){
     let amp = 1.0;
     let freq = 1.0 / params.baseScale;
-    let sum = 0.0;
-    let norm = 0.0;
+    let sum = 0.0, norm = 0.0;
     for (let i=0;i<params.octaves;i++){
       sum  += amp * perlin.noise(x*freq, y*freq);
       norm += amp;
@@ -496,6 +513,7 @@ function makeLandscape(seed){
     return sum / norm;
   }
 
+  // Energy to MINIMIZE
   function energy(u,v){
     const x = (u*2-1), y = (v*2-1);
     const r2 = x*x + y*y;
@@ -521,9 +539,7 @@ function makeLandscape(seed){
   return { params, energy, grad };
 }
 
-/* ---------------------------
-   Slider fill helper
---------------------------- */
+/* ---------- slider fill ---------- */
 function setSliderPercent(el){
   const min = parseFloat(el.min);
   const max = parseFloat(el.max);
@@ -539,25 +555,22 @@ function initAllSliders(){
   });
 }
 
-/* ---------------------------
-   UI + Simulation
---------------------------- */
+/* ---------- DOM refs ---------- */
 const view = document.getElementById('view');
 const spark = document.getElementById('spark');
 const ctx = view.getContext('2d');
 const sctx = spark.getContext('2d', { alpha:true });
 
-const hudMode = document.getElementById('hudMode');
-const hudF = document.getElementById('hudF');
-const hudStep = document.getElementById('hudStep');
-const hudAcc = document.getElementById('hudAcc');
-const hudT = document.getElementById('hudT');
-const hudLR = document.getElementById('hudLR');
+const elViewMode = document.getElementById('viewMode');
+const elZEx = document.getElementById('zEx');
+const elGridRes = document.getElementById('gridRes');
+const btnCenterCam = document.getElementById('centerCam');
 
 const elOct = document.getElementById('oct');
 const elScale = document.getElementById('scale');
 const elPers = document.getElementById('pers');
 const elLac = document.getElementById('lac');
+
 const elMode = document.getElementById('mode');
 const elLR = document.getElementById('lr');
 const elSAStep = document.getElementById('saStep');
@@ -565,10 +578,15 @@ const elTemp = document.getElementById('temp');
 const elCool = document.getElementById('cool');
 const elSPF = document.getElementById('spf');
 
+const vView = document.getElementById('vView');
+const vZ = document.getElementById('vZ');
+const vRes = document.getElementById('vRes');
+
 const vOct = document.getElementById('vOct');
 const vScale = document.getElementById('vScale');
 const vPers = document.getElementById('vPers');
 const vLac = document.getElementById('vLac');
+
 const vMode = document.getElementById('vMode');
 const vLR = document.getElementById('vLR');
 const vStep = document.getElementById('vStep');
@@ -576,12 +594,21 @@ const vTemp = document.getElementById('vTemp');
 const vCool = document.getElementById('vCool');
 const vSPF = document.getElementById('vSPF');
 
+const hudView = document.getElementById('hudView');
+const hudMode = document.getElementById('hudMode');
+const hudF = document.getElementById('hudF');
+const hudStep = document.getElementById('hudStep');
+const hudAcc = document.getElementById('hudAcc');
+const hudT = document.getElementById('hudT');
+const hudLR = document.getElementById('hudLR');
+
 const btnNewSeed = document.getElementById('newSeed');
 const btnRegen = document.getElementById('regen');
 const btnToggle = document.getElementById('toggle');
 const btnReset = document.getElementById('reset');
 const btnSnapBest = document.getElementById('snapBest');
 
+/* ---------- canvas sizing ---------- */
 let W=0,H=0, dpr=1;
 function resize(){
   dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -594,10 +621,11 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 
+/* ---------- state ---------- */
 let seed = (Date.now() ^ 0x9e3779b9) >>> 0;
 let land = makeLandscape(seed);
-let running = false;
 
+let running = false;
 let pos = {u:0.35, v:0.55};
 let start = {...pos};
 let best = {...pos};
@@ -611,18 +639,15 @@ let trail = [];
 let energies = [];
 
 let needsRerender = true;
-let cachedImage = null;
+let cached2D = null; // ImageData for 2D
+let cacheMinMax = {min:0,max:1};
 
-let rerenderQueued = false;
-function requestLandscapeRender(){
-  needsRerender = true;
-  if (rerenderQueued) return;
-  rerenderQueued = true;
-  requestAnimationFrame(()=>{ rerenderQueued = false; });
-}
+// 3D cache (height samples)
+let grid = {n:90, h:null, min:0, max:1}; // h: Float32Array length n*n
 
 function clamp01(x){ return Math.min(1, Math.max(0, x)); }
 
+/* ---------- controls -> params ---------- */
 function setFromControls(){
   land.params.octaves = parseInt(elOct.value, 10);
   land.params.baseScale = parseFloat(elScale.value);
@@ -631,6 +656,10 @@ function setFromControls(){
 }
 
 function updateLabels(){
+  vView.textContent = (parseInt(elViewMode.value,10)===0) ? "2D" : "3D";
+  vZ.textContent = (+elZEx.value).toFixed(2);
+  vRes.textContent = elGridRes.value;
+
   vOct.textContent = elOct.value;
   vScale.textContent = (+elScale.value).toFixed(2);
   vPers.textContent = (+elPers.value).toFixed(2);
@@ -643,6 +672,7 @@ function updateLabels(){
   vCool.textContent = (+elCool.value).toFixed(4);
   vSPF.textContent = elSPF.value;
 
+  hudView.textContent = vView.textContent;
   hudMode.textContent = vMode.textContent;
   hudLR.textContent = (+elLR.value).toFixed(3);
   hudT.textContent = (parseInt(elMode.value,10)===1) ? T.toFixed(3) : "—";
@@ -651,22 +681,24 @@ function updateLabels(){
   hudF.textContent = land.energy(pos.u,pos.v).toFixed(4);
 }
 
+/* ---------- reset ---------- */
 function resetPath(keepStart=false){
   stepCount = 0;
   accepted = 0;
   proposed = 0;
   T = parseFloat(elTemp.value);
 
-  if (!keepStart){
-    pos = {u: start.u, v: start.v};
-  }
+  if (!keepStart) pos = {u: start.u, v: start.v};
+
   best = {...pos};
   bestE = land.energy(best.u,best.v);
+
   trail = [{...pos}];
   energies = [bestE];
   updateLabels();
 }
 
+/* ---------- new landscape ---------- */
 function newLandscape(newSeed){
   seed = newSeed >>> 0;
   land = makeLandscape(seed);
@@ -675,8 +707,20 @@ function newLandscape(newSeed){
   resetPath(true);
 }
 
-/* render landscape */
-function renderLandscape(){
+/* ---------- color ramp for 2D ---------- */
+function ramp(t){
+  const a=[10,18,40], b=[16,36,88], c=[70,110,190], d=[170,210,255], e=[245,220,130];
+  const mix=(p,q,x)=>[p[0]+(q[0]-p[0])*x,p[1]+(q[1]-p[1])*x,p[2]+(q[2]-p[2])*x];
+  let rgb;
+  if(t<0.35) rgb=mix(a,b,t/0.35);
+  else if(t<0.70) rgb=mix(b,c,(t-0.35)/0.35);
+  else if(t<0.90) rgb=mix(c,d,(t-0.70)/0.20);
+  else rgb=mix(d,e,(t-0.90)/0.10);
+  return rgb;
+}
+
+/* ---------- build 2D cached image ---------- */
+function render2D(){
   const img = ctx.createImageData(W,H);
   let min = Infinity, max = -Infinity;
 
@@ -692,18 +736,8 @@ function renderLandscape(){
       if (e>max) max=e;
     }
   }
+  cacheMinMax = {min,max};
   const range = (max-min) || 1;
-
-  function ramp(t){
-    const a=[10,18,40], b=[16,36,88], c=[70,110,190], d=[170,210,255], e=[245,220,130];
-    const mix=(p,q,x)=>[p[0]+(q[0]-p[0])*x,p[1]+(q[1]-p[1])*x,p[2]+(q[2]-p[2])*x];
-    let rgb;
-    if(t<0.35) rgb=mix(a,b,t/0.35);
-    else if(t<0.70) rgb=mix(b,c,(t-0.35)/0.35);
-    else if(t<0.90) rgb=mix(c,d,(t-0.70)/0.20);
-    else rgb=mix(d,e,(t-0.90)/0.10);
-    return rgb;
-  }
 
   k=0;
   for (let y=0; y<H; y++){
@@ -712,27 +746,259 @@ function renderLandscape(){
       const e = E[idx];
       const t = (e - min)/range;
 
+      // fake lighting using gradient magnitude
       const ex = E[Math.min(W*H-1, idx+1)] - E[Math.max(0, idx-1)];
       const ey = E[Math.min(W*H-1, idx+W)] - E[Math.max(0, idx-W)];
-      const shade = 0.5 + 0.5 / (1.0 + 18.0*Math.hypot(ex,ey));
-      const contour = 0.08*Math.sin(40*t*6.28318);
+      const shade = 0.55 + 0.45 / (1.0 + 18.0*Math.hypot(ex,ey));
+      const contour = 0.06*Math.sin(36*t*6.28318);
 
       const c0 = ramp(t);
-      let r = c0[0], g=c0[1], b0=c0[2];
-      const s = Math.max(0.55, Math.min(1.10, shade + contour));
-      r *= s; g *= s; b0 *= s;
+      let r=c0[0], g=c0[1], b=c0[2];
+      const s = Math.max(0.55, Math.min(1.12, shade + contour));
+      r*=s; g*=s; b*=s;
 
       img.data[k++] = r|0;
       img.data[k++] = g|0;
-      img.data[k++] = b0|0;
+      img.data[k++] = b|0;
       img.data[k++] = 255;
     }
   }
 
-  cachedImage = img;
-  needsRerender = false;
+  cached2D = img;
 }
 
+/* ---------- build 3D grid (height samples) ---------- */
+function buildGrid(){
+  const n = parseInt(elGridRes.value,10);
+  const h = new Float32Array(n*n);
+  let min=Infinity, max=-Infinity;
+
+  let idx=0;
+  for(let j=0;j<n;j++){
+    const v = j/(n-1);
+    for(let i=0;i<n;i++){
+      const u = i/(n-1);
+      const e = land.energy(u,v);
+      h[idx++] = e;
+      if(e<min) min=e;
+      if(e>max) max=e;
+    }
+  }
+  grid = {n, h, min, max};
+}
+
+/* ---------- simple 3D isometric projection ---------- */
+function isoProject(x,y,z){
+  // x,y in [-1,1], z in [-1,1]
+  const isoX = (x - y) * 0.78;
+  const isoY = (x + y) * 0.45 - z;
+  return {x: isoX, y: isoY};
+}
+
+function render3D(){
+  // draw triangles from back to front (painter's algorithm by (i+j))
+  const n = grid.n;
+  const h = grid.h;
+  const min = grid.min;
+  const max = grid.max;
+  const range = (max-min)||1;
+
+  // camera framing
+  const zEx = parseFloat(elZEx.value);
+  const cx = W*0.5;
+  const cy = H*0.52;
+  const scale = Math.min(W,H) * 0.62;
+
+  // light direction for shading (normalized)
+  const L = {x:-0.45, y:-0.35, z:0.82};
+  const Ln = Math.hypot(L.x,L.y,L.z); L.x/=Ln; L.y/=Ln; L.z/=Ln;
+
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+
+  // subtle background haze
+  const g = ctx.createRadialGradient(cx, cy*0.85, scale*0.2, cx, cy, scale*1.2);
+  g.addColorStop(0, "rgba(125,211,252,.10)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+
+  // helper to sample normalized height z in [-1,1]
+  function Z(i,j){
+    const e = h[j*n+i];
+    const t = (e - min)/range;         // [0,1]
+    return (t*2 - 1);                  // [-1,1]
+  }
+
+  // draw all cells as 2 triangles
+  // order by diag (i+j) so it sorts back-to-front in iso
+  for(let diag=0; diag<(n-1)+(n-1); diag++){
+    for(let j=Math.max(0, diag-(n-2)); j<=Math.min(n-2, diag); j++){
+      const i = diag - j;
+      if(i<0 || i>n-2) continue;
+
+      // corners in grid => x,y in [-1,1]
+      const x0 = (i/(n-1))*2 - 1;
+      const y0 = (j/(n-1))*2 - 1;
+      const x1 = ((i+1)/(n-1))*2 - 1;
+      const y1 = ((j+1)/(n-1))*2 - 1;
+
+      const z00 = Z(i,j)*zEx;
+      const z10 = Z(i+1,j)*zEx;
+      const z01 = Z(i,j+1)*zEx;
+      const z11 = Z(i+1,j+1)*zEx;
+
+      // triangle A: (00,10,11)
+      drawTri(x0,y0,z00, x1,y0,z10, x1,y1,z11);
+      // triangle B: (00,11,01)
+      drawTri(x0,y0,z00, x1,y1,z11, x0,y1,z01);
+    }
+  }
+
+  // optional wire (very subtle)
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = "rgba(125,211,252,.8)";
+  ctx.lineWidth = 1*dpr;
+  const step = Math.max(3, Math.floor(n/18));
+  for(let j=0;j<n;j+=step){
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1))*2-1;
+      const y = (j/(n-1))*2-1;
+      const z = Z(i,j)*zEx;
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+  for(let i=0;i<n;i+=step){
+    ctx.beginPath();
+    for(let j=0;j<n;j++){
+      const x = (i/(n-1))*2-1;
+      const y = (j/(n-1))*2-1;
+      const z = Z(i,j)*zEx;
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+      if(j===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  function drawTri(ax,ay,az, bx,by,bz, cx0,cy0,cz0){
+    // project
+    const A = isoProject(ax,ay,az);
+    const B = isoProject(bx,by,bz);
+    const C = isoProject(cx0,cy0,cz0);
+
+    const Ax = cx + A.x*scale, Ay = cy + A.y*scale;
+    const Bx = cx + B.x*scale, By = cy + B.y*scale;
+    const Cx = cx + C.x*scale, Cy = cy + C.y*scale;
+
+    // normal from 3D points (not projected)
+    const ux = bx-ax, uy = by-ay, uz = bz-az;
+    const vx = cx0-ax, vy = cy0-ay, vz = cz0-az;
+    let nx = uy*vz - uz*vy;
+    let ny = uz*vx - ux*vz;
+    let nz = ux*vy - uy*vx;
+    const nn = Math.hypot(nx,ny,nz) || 1;
+    nx/=nn; ny/=nn; nz/=nn;
+
+    const ndotl = Math.max(0.0, nx*L.x + ny*L.y + nz*L.z);
+
+    // color from avg height
+    const zavg = (az+bz+cz0)/3;
+    const t = (zavg/(parseFloat(elZEx.value)||1) + 1)/2; // ~[0,1]
+    const base = ramp(Math.min(1,Math.max(0,t)));
+
+    // shade curve
+    const s = 0.42 + 0.75*ndotl;
+    const r = Math.min(255, base[0]*s);
+    const g = Math.min(255, base[1]*s);
+    const b = Math.min(255, base[2]*s);
+
+    ctx.beginPath();
+    ctx.moveTo(Ax,Ay);
+    ctx.lineTo(Bx,By);
+    ctx.lineTo(Cx,Cy);
+    ctx.closePath();
+    ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    ctx.fill();
+  }
+}
+
+/* ---------- draw markers + trail (2D and 3D overlay) ---------- */
+function uvToScreen2D(u,v){
+  return {x: u*(W-1), y: v*(H-1)};
+}
+
+function uvToScreen3D(u,v){
+  // map uv in [0,1] to xy in [-1,1], and height from energy
+  const x = u*2 - 1;
+  const y = v*2 - 1;
+  const zEx = parseFloat(elZEx.value);
+
+  // use grid min/max if available; fallback quick sample
+  const e = land.energy(u,v);
+  const min = grid.min, max = grid.max;
+  const range = (max-min)||1;
+  const t = (e-min)/range;
+  const z = (t*2 - 1) * zEx;
+
+  const cx = W*0.5;
+  const cy = H*0.52;
+  const scale = Math.min(W,H) * 0.62;
+
+  const p = isoProject(x,y,z);
+  return {x: cx + p.x*scale, y: cy + p.y*scale};
+}
+
+function drawOverlay(){
+  const view3D = parseInt(elViewMode.value,10)===1;
+
+  // trail (smooth glow)
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.lineWidth = 2.2*dpr;
+  ctx.strokeStyle = "rgba(125,211,252,.85)";
+  ctx.shadowColor = "rgba(125,211,252,.35)";
+  ctx.shadowBlur = 10*dpr;
+
+  ctx.beginPath();
+  for(let i=0;i<trail.length;i++){
+    const p = trail[i];
+    const s = view3D ? uvToScreen3D(p.u,p.v) : uvToScreen2D(p.u,p.v);
+    if(i===0) ctx.moveTo(s.x,s.y);
+    else ctx.lineTo(s.x,s.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  function dot(u,v,r,fill){
+    const s = view3D ? uvToScreen3D(u,v) : uvToScreen2D(u,v);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,r,0,Math.PI*2);
+    ctx.fillStyle = fill;
+    ctx.shadowColor = fill;
+    ctx.shadowBlur = 12*dpr;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 2*dpr;
+    ctx.strokeStyle = "rgba(0,0,0,.35)";
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");
+  dot(best.u, best.v,   6.8*dpr, "rgba(52,211,153,.95)");
+  dot(pos.u, pos.v,     6.8*dpr, "rgba(125,211,252,.98)");
+}
+
+/* ---------- sparkline ---------- */
 function drawSpark(){
   const w = spark.width, h = spark.height;
   sctx.clearRect(0,0,w,h);
@@ -756,9 +1022,8 @@ function drawSpark(){
   sctx.strokeStyle = "rgba(125,211,252,.95)";
   sctx.lineWidth = 2;
   sctx.beginPath();
-  const N = energies.length;
-  for(let i=0;i<N;i++){
-    const x = (i/(N-1))*w;
+  for(let i=0;i<energies.length;i++){
+    const x = (i/(energies.length-1))*w;
     const t = (energies[i]-min)/range;
     const y = (1-t)*(h-6)+3;
     if(i===0) sctx.moveTo(x,y);
@@ -768,113 +1033,101 @@ function drawSpark(){
   sctx.restore();
 }
 
-function draw(){
-  if (needsRerender || !cachedImage) renderLandscape();
-  ctx.putImageData(cachedImage, 0, 0);
-
-  // grid overlay
-  ctx.save();
-  ctx.globalAlpha = 0.10;
-  ctx.strokeStyle = "rgba(125,211,252,.35)";
-  ctx.lineWidth = 1;
-  const grid = 10;
-  for(let i=1;i<grid;i++){
-    const x = i*W/grid;
-    const y = i*H/grid;
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+/* ---------- render dispatcher ---------- */
+function renderScene(){
+  if (needsRerender){
+    // rebuild caches
+    render2D();
+    buildGrid();
+    needsRerender = false;
   }
-  ctx.restore();
 
-  // trail
-  ctx.save();
-  ctx.lineWidth = 2*dpr;
-  ctx.strokeStyle = "rgba(125,211,252,.85)";
-  ctx.globalAlpha = 0.75;
-  ctx.beginPath();
-  for (let i=0;i<trail.length;i++){
-    const p = trail[i];
-    const x = p.u*(W-1), y = p.v*(H-1);
-    if (i===0) ctx.moveTo(x,y);
-    else ctx.lineTo(x,y);
-  }
-  ctx.stroke();
-  ctx.restore();
+  const view3D = parseInt(elViewMode.value,10)===1;
+  if (view3D){
+    render3D();
+  } else {
+    ctx.putImageData(cached2D, 0, 0);
 
-  function dot(u,v, r, fill, stroke){
-    const x = u*(W-1), y = v*(H-1);
+    // subtle grid overlay in 2D
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle = fill;
-    ctx.fill();
-    if(stroke){
-      ctx.lineWidth = 2*dpr;
-      ctx.strokeStyle = stroke;
-      ctx.stroke();
+    ctx.globalAlpha = 0.10;
+    ctx.strokeStyle = "rgba(125,211,252,.35)";
+    ctx.lineWidth = 1;
+    const gridN = 10;
+    for(let i=1;i<gridN;i++){
+      const x = i*W/gridN;
+      const y = i*H/gridN;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
     }
     ctx.restore();
   }
 
-  dot(start.u, start.v, 6.5*dpr, "rgba(251,113,133,.95)", "rgba(0,0,0,.35)");
-  dot(best.u, best.v,   6.5*dpr, "rgba(52,211,153,.95)", "rgba(0,0,0,.35)");
-  dot(pos.u, pos.v,     6.5*dpr, "rgba(125,211,252,.95)", "rgba(0,0,0,.35)");
-
+  drawOverlay();
   drawSpark();
 }
 
+/* ---------- optimizer step (smoothed) ---------- */
 function stepOnce(){
   const mode = parseInt(elMode.value,10);
-  if (mode === 0){
-    const lr = parseFloat(elLR.value);
-    const g = land.grad(pos.u, pos.v);
-    const gn = Math.hypot(g.du, g.dv) || 1;
-    pos.u = clamp01(pos.u - lr*(g.du/gn));
-    pos.v = clamp01(pos.v - lr*(g.dv/gn));
 
-    const e = land.energy(pos.u,pos.v);
-    trail.push({...pos});
-    energies.push(e);
-    if (e < bestE){ bestE = e; best = {...pos}; }
-    stepCount++;
-  } else {
-    const stepSize = parseFloat(elSAStep.value);
-    const cool = parseFloat(elCool.value);
+  // to reduce jaggedness: do micro-steps inside one "step"
+  const micro = 3;
 
-    const curE = land.energy(pos.u,pos.v);
+  for(let m=0;m<micro;m++){
+    if (mode === 0){
+      // GD
+      const lr = parseFloat(elLR.value) / micro;
+      const g = land.grad(pos.u, pos.v);
+      const gn = Math.hypot(g.du, g.dv) || 1;
 
-    const rng = mulberry32((seed ^ (stepCount*2654435761))>>>0);
-    const ang = rng()*Math.PI*2;
-    const rad = stepSize * Math.sqrt(rng());
-    const pu = clamp01(pos.u + rad*Math.cos(ang));
-    const pv = clamp01(pos.v + rad*Math.sin(ang));
-    const newE = land.energy(pu,pv);
-    const dE = newE - curE;
+      pos.u = clamp01(pos.u - lr*(g.du/gn));
+      pos.v = clamp01(pos.v - lr*(g.dv/gn));
 
-    proposed++;
-
-    let accept = false;
-    if (dE <= 0) accept = true;
-    else accept = (rng() < Math.exp(-dE / Math.max(1e-9, T)));
-
-    if (accept){
-      accepted++;
-      pos.u = pu; pos.v = pv;
-      trail.push({...pos});
-      energies.push(newE);
-      if (newE < bestE){ bestE = newE; best = {...pos}; }
+      const e = land.energy(pos.u,pos.v);
+      if (e < bestE){ bestE = e; best = {...pos}; }
     } else {
-      energies.push(curE);
+      // SA
+      const stepSize = parseFloat(elSAStep.value);
+      const cool = parseFloat(elCool.value);
+
+      const curE = land.energy(pos.u,pos.v);
+      const rng = mulberry32((seed ^ ((stepCount+1)*2654435761) ^ (m*9973))>>>0);
+
+      const ang = rng()*Math.PI*2;
+      const rad = (stepSize/micro) * Math.sqrt(rng());
+      const pu = clamp01(pos.u + rad*Math.cos(ang));
+      const pv = clamp01(pos.v + rad*Math.sin(ang));
+      const newE = land.energy(pu,pv);
+      const dE = newE - curE;
+
+      proposed++;
+      let accept = false;
+      if (dE <= 0) accept = true;
+      else accept = (rng() < Math.exp(-dE / Math.max(1e-9, T)));
+
+      if (accept){
+        accepted++;
+        pos.u = pu; pos.v = pv;
+        if (newE < bestE){ bestE = newE; best = {...pos}; }
+      }
+
+      // cool slowly per micro-step
+      T *= Math.pow(cool, 1/micro);
     }
-    T *= cool;
-    stepCount++;
   }
 
-  if (trail.length > 2400) trail.splice(0, trail.length-2400);
+  const eNow = land.energy(pos.u,pos.v);
+  trail.push({...pos});
+  energies.push(eNow);
+
+  stepCount++;
+
+  if (trail.length > 2200) trail.splice(0, trail.length-2200);
   if (energies.length > 480) energies.splice(0, energies.length-480);
 }
 
-/* interaction */
+/* ---------- interaction ---------- */
 function canvasToUV(ev){
   const r = view.getBoundingClientRect();
   const x = (ev.clientX - r.left) / r.width;
@@ -887,7 +1140,6 @@ view.addEventListener('click', (ev)=>{
   pos = {u: uv.u, v: uv.v};
   start = {...pos};
   resetPath(true);
-  draw();
 });
 
 document.addEventListener('keydown', (e)=>{
@@ -895,28 +1147,30 @@ document.addEventListener('keydown', (e)=>{
   if (e.key.toLowerCase() === 'r'){ resetPath(false); }
 });
 
-function onParamChange(reRender=false){
+/* ---------- change handling ---------- */
+function onParamChange(fullRerender=false){
   setFromControls();
   updateLabels();
-  if (reRender) requestLandscapeRender();
+  if (fullRerender) needsRerender = true;
 }
 
-/* LIVE sliders: update landscape while dragging */
-let liveLandscape = true;
-let keepPathOnLandscapeChange = false;
-
+// live updates for landscape sliders
 [elOct, elScale, elPers, elLac].forEach(el=>{
   el.addEventListener('input', ()=>{
-    onParamChange(liveLandscape);
-    if (!keepPathOnLandscapeChange) resetPath(true);
-  });
-  el.addEventListener('change', ()=>{
     onParamChange(true);
-    if (!keepPathOnLandscapeChange) resetPath(true);
+    resetPath(true);
   });
 });
 
-/* other controls */
+// view sliders
+[elViewMode, elZEx, elGridRes].forEach(el=>{
+  el.addEventListener('input', ()=>{
+    updateLabels();
+    needsRerender = true;
+  });
+});
+
+// optimizer sliders
 [elMode, elLR, elSAStep, elTemp, elCool, elSPF].forEach(el=>{
   el.addEventListener('input', ()=>{
     if (el === elTemp) T = parseFloat(elTemp.value);
@@ -928,40 +1182,41 @@ let keepPathOnLandscapeChange = false;
   });
 });
 
+btnCenterCam.addEventListener('click', ()=>{
+  // simple “center” is just re-render (camera is fixed in this version)
+  needsRerender = true;
+});
+
 btnNewSeed.addEventListener('click', ()=>{
   const s = (Date.now() ^ ((Math.random()*1e9)|0) ^ seed) >>> 0;
   newLandscape(s);
 });
-btnRegen.addEventListener('click', ()=>{
-  requestLandscapeRender();
-  draw();
-});
+btnRegen.addEventListener('click', ()=>{ needsRerender = true; });
 btnToggle.addEventListener('click', ()=>{ running = !running; });
 btnReset.addEventListener('click', ()=>{ resetPath(false); });
 btnSnapBest.addEventListener('click', ()=>{
   pos = {...best};
   resetPath(true);
-  draw();
 });
 
+/* ---------- loop ---------- */
 function tick(){
   const spf = parseInt(elSPF.value,10);
   if (running){
     for (let i=0;i<spf;i++) stepOnce();
   }
   updateLabels();
-  draw();
+  renderScene();
   requestAnimationFrame(tick);
 }
 
-/* init */
+/* ---------- init ---------- */
 resize();
 setFromControls();
-initAllSliders();    // <-- makes sliders look like sliders (fill + glow)
+initAllSliders();
 updateLabels();
 resetPath(true);
 tick();
 </script>
 </body>
 </html>
-
