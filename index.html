@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -16,7 +17,15 @@
       --good:#34d399;
       --warn:#fbbf24;
       --bad:#fb7185;
+
+      /* slider theme */
+      --sliderTrack: rgba(125,211,252,.18);
+      --sliderFill: rgba(125,211,252,.85);
+      --sliderGlow: rgba(125,211,252,.35);
+      --sliderThumb: rgba(231,240,255,.95);
+      --sliderThumbEdge: rgba(125,211,252,.55);
     }
+
     html,body{height:100%}
     body{
       margin:0; background:radial-gradient(1200px 800px at 30% 10%, #101a3a 0%, var(--bg) 55%, #050814 100%);
@@ -72,11 +81,8 @@
       min-height:0;
       background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.4));
     }
-    canvas{
-      display:block;
-      width:100%;
-      height:100%;
-    }
+    canvas{ display:block; width:100%; height:100%; }
+
     .hint{
       position:absolute;
       left:14px; bottom:12px;
@@ -108,17 +114,18 @@
     }
     .hud .k{color:rgba(136,160,214,.95)}
     .hud .v{font-variant-numeric: tabular-nums; color:#e7f0ff}
+
     .panel{
       display:grid;
       grid-template-rows: auto 1fr;
       min-height:0;
     }
-    .controls{
-      padding:12px 14px 10px;
+    .mini{
       display:grid;
       gap:10px;
-      background:linear-gradient(180deg, rgba(10,20,45,.75), rgba(10,20,45,.2));
-      border-bottom:1px solid rgba(125,211,252,.12);
+      padding:12px 14px 14px;
+      overflow:auto;
+      min-height:0;
     }
     .group{
       background:rgba(8,14,28,.55);
@@ -135,10 +142,9 @@
     }
     .rowCtrl{
       display:grid;
-      grid-template-columns: 1fr auto;
-      gap:10px;
-      align-items:center;
-      margin:8px 0;
+      grid-template-columns: 1fr;
+      gap:8px;
+      margin:10px 0;
     }
     label{
       font-size:12px;
@@ -151,10 +157,71 @@
       color:rgba(136,160,214,.95);
       font-variant-numeric: tabular-nums;
     }
-    input[type="range"]{
+
+    /* ===== PRO RANGE SLIDER (Observable/Bloomberg-ish) ===== */
+    .rowCtrl input[type="range"]{
       width:100%;
-      accent-color: var(--accent);
+      height: 28px;
+      background: transparent;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+      --p: 50%;
     }
+    .rowCtrl input[type="range"]::-webkit-slider-runnable-track{
+      height: 6px;
+      border-radius: 999px;
+      background:
+        linear-gradient(90deg, var(--sliderFill) 0 var(--p), var(--sliderTrack) var(--p) 100%);
+      box-shadow:
+        0 0 0 1px rgba(125,211,252,.18) inset,
+        0 0 14px var(--sliderGlow);
+    }
+    .rowCtrl input[type="range"]::-webkit-slider-thumb{
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      margin-top: -5px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 35%, #ffffff, var(--sliderThumb));
+      border: 1px solid var(--sliderThumbEdge);
+      box-shadow:
+        0 0 0 5px rgba(125,211,252,.10),
+        0 10px 22px rgba(0,0,0,.45),
+        0 0 18px rgba(125,211,252,.35);
+    }
+    .rowCtrl input[type="range"]::-moz-range-track{
+      height: 6px;
+      border-radius: 999px;
+      background: var(--sliderTrack);
+      box-shadow:
+        0 0 0 1px rgba(125,211,252,.18) inset,
+        0 0 14px var(--sliderGlow);
+    }
+    .rowCtrl input[type="range"]::-moz-range-progress{
+      height: 6px;
+      border-radius: 999px;
+      background: var(--sliderFill);
+    }
+    .rowCtrl input[type="range"]::-moz-range-thumb{
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 35%, #ffffff, var(--sliderThumb));
+      border: 1px solid var(--sliderThumbEdge);
+      box-shadow:
+        0 0 0 5px rgba(125,211,252,.10),
+        0 10px 22px rgba(0,0,0,.45),
+        0 0 18px rgba(125,211,252,.35);
+    }
+    .rowCtrl input[type="range"]:focus{ outline:none; }
+    .rowCtrl input[type="range"]:focus::-webkit-slider-runnable-track{
+      box-shadow:
+        0 0 0 1px rgba(125,211,252,.28) inset,
+        0 0 20px rgba(125,211,252,.45);
+    }
+
     .btns{
       display:flex;
       flex-wrap:wrap;
@@ -183,6 +250,7 @@
       background:linear-gradient(180deg, rgba(251,113,133,.20), rgba(251,113,133,.08));
       border-color:rgba(251,113,133,.28);
     }
+
     .footer{
       padding:10px 14px;
       display:flex;
@@ -191,18 +259,6 @@
       border-top:1px solid rgba(125,211,252,.12);
       background:linear-gradient(180deg, rgba(10,20,45,.25), rgba(10,20,45,.55));
       gap:12px;
-    }
-    .mini{
-      display:grid;
-      gap:8px;
-      padding:12px 14px 14px;
-      overflow:auto;
-      min-height:0;
-    }
-    .note{
-      font-size:12px;
-      color:rgba(136,160,214,.95);
-      line-height:1.35;
     }
     .legend{
       display:flex;
@@ -226,8 +282,14 @@
       background:rgba(8,14,28,.55);
       color:rgba(231,240,255,.92);
     }
+    .note{
+      font-size:12px;
+      color:rgba(136,160,214,.95);
+      line-height:1.35;
+    }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <section class="card main">
@@ -304,7 +366,7 @@
           <div class="groupTitle">Optimizer</div>
 
           <div class="rowCtrl">
-            <label>Mode <span class="val" id="vMode">—</span></label>
+            <label>Mode (0=GD,1=SA) <span class="val" id="vMode">—</span></label>
             <input id="mode" type="range" min="0" max="1" step="1" value="0" />
           </div>
 
@@ -364,15 +426,13 @@ function mulberry32(seed){
 }
 
 /* ---------------------------
-   2D Perlin Noise (classic gradient)
-   (compact implementation)
+   2D Perlin Noise
 --------------------------- */
 function makePerlin(seed){
   const rand = mulberry32(seed);
   const p = new Uint8Array(512);
   const perm = new Uint8Array(256);
   for (let i=0;i<256;i++) perm[i]=i;
-  // shuffle
   for (let i=255;i>0;i--){
     const j = (rand()*(i+1))|0;
     const tmp = perm[i]; perm[i]=perm[j]; perm[j]=tmp;
@@ -382,7 +442,6 @@ function makePerlin(seed){
   function fade(t){ return t*t*t*(t*(t*6-15)+10); }
   function lerp(a,b,t){ return a + t*(b-a); }
   function grad(hash,x,y){
-    // 8 directions
     const h = hash & 7;
     const u = h<4 ? x : y;
     const v = h<4 ? y : x;
@@ -404,7 +463,6 @@ function makePerlin(seed){
 
     const x1 = lerp(grad(aa, xf,   yf),   grad(ba, xf-1, yf),   u);
     const x2 = lerp(grad(ab, xf,   yf-1), grad(bb, xf-1, yf-1), u);
-    // normalize-ish to ~[-1,1]
     return lerp(x1, x2, v) * 0.25;
   }
 
@@ -419,7 +477,7 @@ function makeLandscape(seed){
 
   const params = {
     octaves: 6,
-    baseScale: 1.6,     // bigger => smoother (lower frequency overall)
+    baseScale: 1.6,
     persistence: 0.55,
     lacunarity: 2.0
   };
@@ -435,26 +493,20 @@ function makeLandscape(seed){
       amp *= params.persistence;
       freq *= params.lacunarity;
     }
-    return sum / norm; // ~[-1,1]
+    return sum / norm;
   }
 
-  // A little “basin shaping” so global structure exists
   function energy(u,v){
-    // u,v in [0,1]
     const x = (u*2-1), y = (v*2-1);
     const r2 = x*x + y*y;
 
-    // multi-scale field + gentle bowl + ridges
     const n = fbm(u*6.0, v*6.0);
     const ridge = Math.abs(fbm(u*3.2+10.1, v*3.2-7.3));
     const bowl = 0.15 * r2;
 
-    // Energy to MINIMIZE (lower is better)
-    // Make ridges increase energy.
     return 0.85*n + 0.55*ridge + bowl;
   }
 
-  // Finite-difference gradient (central difference)
   function grad(u,v){
     const eps = 1e-3;
     const u1 = Math.min(1, Math.max(0, u+eps));
@@ -467,6 +519,24 @@ function makeLandscape(seed){
   }
 
   return { params, energy, grad };
+}
+
+/* ---------------------------
+   Slider fill helper
+--------------------------- */
+function setSliderPercent(el){
+  const min = parseFloat(el.min);
+  const max = parseFloat(el.max);
+  const val = parseFloat(el.value);
+  const p = ((val - min) / (max - min)) * 100;
+  el.style.setProperty('--p', p.toFixed(2) + '%');
+}
+function initAllSliders(){
+  document.querySelectorAll('.rowCtrl input[type="range"]').forEach(el=>{
+    setSliderPercent(el);
+    el.addEventListener('input', ()=>setSliderPercent(el));
+    el.addEventListener('change', ()=>setSliderPercent(el));
+  });
 }
 
 /* ---------------------------
@@ -513,7 +583,6 @@ const btnReset = document.getElementById('reset');
 const btnSnapBest = document.getElementById('snapBest');
 
 let W=0,H=0, dpr=1;
-
 function resize(){
   dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   const r = view.getBoundingClientRect();
@@ -525,7 +594,6 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 
-/* State */
 let seed = (Date.now() ^ 0x9e3779b9) >>> 0;
 let land = makeLandscape(seed);
 let running = false;
@@ -540,11 +608,18 @@ let accepted = 0, proposed = 0;
 let stepCount = 0;
 
 let trail = [];
-let energies = []; // for sparkline
+let energies = [];
 
 let needsRerender = true;
 let cachedImage = null;
-let cachedMinMax = {min:0,max:1};
+
+let rerenderQueued = false;
+function requestLandscapeRender(){
+  needsRerender = true;
+  if (rerenderQueued) return;
+  rerenderQueued = true;
+  requestAnimationFrame(()=>{ rerenderQueued = false; });
+}
 
 function clamp01(x){ return Math.min(1, Math.max(0, x)); }
 
@@ -553,10 +628,6 @@ function setFromControls(){
   land.params.baseScale = parseFloat(elScale.value);
   land.params.persistence = parseFloat(elPers.value);
   land.params.lacunarity = parseFloat(elLac.value);
-}
-
-function modeName(){
-  return (parseInt(elMode.value,10)===0) ? "Gradient Descent" : "Simulated Annealing";
 }
 
 function updateLabels(){
@@ -585,6 +656,7 @@ function resetPath(keepStart=false){
   accepted = 0;
   proposed = 0;
   T = parseFloat(elTemp.value);
+
   if (!keepStart){
     pos = {u: start.u, v: start.v};
   }
@@ -603,40 +675,11 @@ function newLandscape(newSeed){
   resetPath(true);
 }
 
-function colorMap(t){
-  // t in [0,1] -> dark scientific heat
-  // Use piecewise without hardcoded palette names; still deterministic:
-  // We'll build a smooth ramp using RGB mix.
-  const a = [10, 18, 40];     // deep navy
-  const b = [16, 36, 88];     // blue
-  const c = [70, 110, 190];   // mid
-  const d = [170, 210, 255];  // light cyan
-  const e = [245, 220, 130];  // warm highlight
-
-  function mix(p,q,x){
-    return [
-      p[0] + (q[0]-p[0])*x,
-      p[1] + (q[1]-p[1])*x,
-      p[2] + (q[2]-p[2])*x
-    ];
-  }
-  let rgb;
-  if (t < 0.35) rgb = mix(a,b, t/0.35);
-  else if (t < 0.70) rgb = mix(b,c, (t-0.35)/0.35);
-  else if (t < 0.90) rgb = mix(c,d, (t-0.70)/0.20);
-  else rgb = mix(d,e, (t-0.90)/0.10);
-
-  // subtle contrast curve
-  const gamma = 0.95;
-  rgb = rgb.map(v => 255*Math.pow(v/255, gamma));
-  return `rgb(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0})`;
-}
-
+/* render landscape */
 function renderLandscape(){
   const img = ctx.createImageData(W,H);
   let min = Infinity, max = -Infinity;
 
-  // sample energy field
   const E = new Float32Array(W*H);
   let k=0;
   for (let y=0; y<H; y++){
@@ -649,10 +692,19 @@ function renderLandscape(){
       if (e>max) max=e;
     }
   }
-  cachedMinMax = {min,max};
-
-  // paint with lighting-like shading (fake normal from gradients)
   const range = (max-min) || 1;
+
+  function ramp(t){
+    const a=[10,18,40], b=[16,36,88], c=[70,110,190], d=[170,210,255], e=[245,220,130];
+    const mix=(p,q,x)=>[p[0]+(q[0]-p[0])*x,p[1]+(q[1]-p[1])*x,p[2]+(q[2]-p[2])*x];
+    let rgb;
+    if(t<0.35) rgb=mix(a,b,t/0.35);
+    else if(t<0.70) rgb=mix(b,c,(t-0.35)/0.35);
+    else if(t<0.90) rgb=mix(c,d,(t-0.70)/0.20);
+    else rgb=mix(d,e,(t-0.90)/0.10);
+    return rgb;
+  }
+
   k=0;
   for (let y=0; y<H; y++){
     for (let x=0; x<W; x++){
@@ -660,33 +712,19 @@ function renderLandscape(){
       const e = E[idx];
       const t = (e - min)/range;
 
-      // finite neighbor difference for “contour shading”
       const ex = E[Math.min(W*H-1, idx+1)] - E[Math.max(0, idx-1)];
       const ey = E[Math.min(W*H-1, idx+W)] - E[Math.max(0, idx-W)];
-      const shade = 0.5 + 0.5 / (1.0 + 18.0*Math.hypot(ex,ey)); // higher grad => darker
-      const contour = 0.08*Math.sin(40*t*6.28318); // subtle contour banding
+      const shade = 0.5 + 0.5 / (1.0 + 18.0*Math.hypot(ex,ey));
+      const contour = 0.08*Math.sin(40*t*6.28318);
 
-      // map to rgb
-      // get base color then apply shade
-      // (fast-ish: parse strings avoided; manual RGB ramp)
-      const c = (function(t){
-        const a=[10,18,40], b=[16,36,88], c=[70,110,190], d=[170,210,255], e=[245,220,130];
-        const mix=(p,q,x)=>[p[0]+(q[0]-p[0])*x,p[1]+(q[1]-p[1])*x,p[2]+(q[2]-p[2])*x];
-        let rgb;
-        if(t<0.35) rgb=mix(a,b,t/0.35);
-        else if(t<0.70) rgb=mix(b,c,(t-0.35)/0.35);
-        else if(t<0.90) rgb=mix(c,d,(t-0.70)/0.20);
-        else rgb=mix(d,e,(t-0.90)/0.10);
-        return rgb;
-      })(t);
-
-      let r = c[0], g=c[1], b=c[2];
+      const c0 = ramp(t);
+      let r = c0[0], g=c0[1], b0=c0[2];
       const s = Math.max(0.55, Math.min(1.10, shade + contour));
-      r *= s; g *= s; b *= s;
+      r *= s; g *= s; b0 *= s;
 
       img.data[k++] = r|0;
       img.data[k++] = g|0;
-      img.data[k++] = b|0;
+      img.data[k++] = b0|0;
       img.data[k++] = 255;
     }
   }
@@ -695,11 +733,46 @@ function renderLandscape(){
   needsRerender = false;
 }
 
+function drawSpark(){
+  const w = spark.width, h = spark.height;
+  sctx.clearRect(0,0,w,h);
+  if (energies.length < 2) return;
+
+  let min=Infinity, max=-Infinity;
+  for (const e of energies){ if(e<min)min=e; if(e>max)max=e; }
+  const range = (max-min)||1;
+
+  sctx.save();
+  sctx.globalAlpha = 0.35;
+  sctx.strokeStyle = "rgba(125,211,252,.22)";
+  sctx.lineWidth = 1;
+  for(let i=1;i<5;i++){
+    const y = i*h/5;
+    sctx.beginPath(); sctx.moveTo(0,y); sctx.lineTo(w,y); sctx.stroke();
+  }
+  sctx.restore();
+
+  sctx.save();
+  sctx.strokeStyle = "rgba(125,211,252,.95)";
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  const N = energies.length;
+  for(let i=0;i<N;i++){
+    const x = (i/(N-1))*w;
+    const t = (energies[i]-min)/range;
+    const y = (1-t)*(h-6)+3;
+    if(i===0) sctx.moveTo(x,y);
+    else sctx.lineTo(x,y);
+  }
+  sctx.stroke();
+  sctx.restore();
+}
+
 function draw(){
   if (needsRerender || !cachedImage) renderLandscape();
   ctx.putImageData(cachedImage, 0, 0);
 
-  // overlay grid
+  // grid overlay
   ctx.save();
   ctx.globalAlpha = 0.10;
   ctx.strokeStyle = "rgba(125,211,252,.35)";
@@ -743,91 +816,33 @@ function draw(){
     ctx.restore();
   }
 
-  // start / best / current
   dot(start.u, start.v, 6.5*dpr, "rgba(251,113,133,.95)", "rgba(0,0,0,.35)");
   dot(best.u, best.v,   6.5*dpr, "rgba(52,211,153,.95)", "rgba(0,0,0,.35)");
   dot(pos.u, pos.v,     6.5*dpr, "rgba(125,211,252,.95)", "rgba(0,0,0,.35)");
 
-  // sparkline energy
   drawSpark();
-}
-
-function drawSpark(){
-  const w = spark.width, h = spark.height;
-  sctx.clearRect(0,0,w,h);
-  if (energies.length < 2) return;
-
-  let min=Infinity, max=-Infinity;
-  for (const e of energies){ if(e<min)min=e; if(e>max)max=e; }
-  const range = (max-min)||1;
-
-  // background grid
-  sctx.save();
-  sctx.globalAlpha = 0.35;
-  sctx.strokeStyle = "rgba(125,211,252,.22)";
-  sctx.lineWidth = 1;
-  for(let i=1;i<5;i++){
-    const y = i*h/5;
-    sctx.beginPath(); sctx.moveTo(0,y); sctx.lineTo(w,y); sctx.stroke();
-  }
-  sctx.restore();
-
-  // line
-  sctx.save();
-  sctx.strokeStyle = "rgba(125,211,252,.95)";
-  sctx.lineWidth = 2;
-  sctx.beginPath();
-  const N = energies.length;
-  for(let i=0;i<N;i++){
-    const x = (i/(N-1))*w;
-    const t = (energies[i]-min)/range;
-    const y = (1-t)*(h-6)+3;
-    if(i===0) sctx.moveTo(x,y);
-    else sctx.lineTo(x,y);
-  }
-  sctx.stroke();
-  sctx.restore();
-
-  // best dot
-  const bestIdx = energies.indexOf(Math.min(...energies));
-  const bx = (bestIdx/(energies.length-1))*w;
-  const bt = (energies[bestIdx]-min)/range;
-  const by = (1-bt)*(h-6)+3;
-
-  sctx.save();
-  sctx.fillStyle = "rgba(52,211,153,.95)";
-  sctx.beginPath(); sctx.arc(bx,by,3.2,0,Math.PI*2); sctx.fill();
-  sctx.restore();
 }
 
 function stepOnce(){
   const mode = parseInt(elMode.value,10);
   if (mode === 0){
-    // Gradient Descent
     const lr = parseFloat(elLR.value);
     const g = land.grad(pos.u, pos.v);
-    // normalized-ish step to avoid huge jumps
     const gn = Math.hypot(g.du, g.dv) || 1;
-    const du = g.du/gn, dv = g.dv/gn;
-    pos.u = clamp01(pos.u - lr*du);
-    pos.v = clamp01(pos.v - lr*dv);
+    pos.u = clamp01(pos.u - lr*(g.du/gn));
+    pos.v = clamp01(pos.v - lr*(g.dv/gn));
 
     const e = land.energy(pos.u,pos.v);
     trail.push({...pos});
     energies.push(e);
-
-    if (e < bestE){
-      bestE = e; best = {...pos};
-    }
+    if (e < bestE){ bestE = e; best = {...pos}; }
     stepCount++;
   } else {
-    // Simulated Annealing with Metropolis
     const stepSize = parseFloat(elSAStep.value);
     const cool = parseFloat(elCool.value);
 
     const curE = land.energy(pos.u,pos.v);
 
-    // propose
     const rng = mulberry32((seed ^ (stepCount*2654435761))>>>0);
     const ang = rng()*Math.PI*2;
     const rad = stepSize * Math.sqrt(rng());
@@ -840,38 +855,26 @@ function stepOnce(){
 
     let accept = false;
     if (dE <= 0) accept = true;
-    else {
-      const p = Math.exp(-dE / Math.max(1e-9, T));
-      accept = (rng() < p);
-    }
+    else accept = (rng() < Math.exp(-dE / Math.max(1e-9, T)));
 
     if (accept){
       accepted++;
       pos.u = pu; pos.v = pv;
-      const e = newE;
       trail.push({...pos});
-      energies.push(e);
-      if (e < bestE){
-        bestE = e; best = {...pos};
-      }
+      energies.push(newE);
+      if (newE < bestE){ bestE = newE; best = {...pos}; }
     } else {
-      // still record energy for spark continuity (optional)
       energies.push(curE);
     }
-
-    // cool
     T *= cool;
     stepCount++;
   }
 
-  // keep arrays bounded
-  const maxTrail = 2400;
-  if (trail.length > maxTrail) trail.splice(0, trail.length-maxTrail);
-  const maxE = 480;
-  if (energies.length > maxE) energies.splice(0, energies.length-maxE);
+  if (trail.length > 2400) trail.splice(0, trail.length-2400);
+  if (energies.length > 480) energies.splice(0, energies.length-480);
 }
 
-/* Interaction */
+/* interaction */
 function canvasToUV(ev){
   const r = view.getBoundingClientRect();
   const x = (ev.clientX - r.left) / r.width;
@@ -898,24 +901,22 @@ function onParamChange(reRender=false){
   if (reRender) requestLandscapeRender();
 }
 
-
-/* Wire controls */
-let liveLandscape = true;   // cambia a false si quieres que solo regenere al soltar
-let keepPathOnLandscapeChange = false; // true = no resetea el path
+/* LIVE sliders: update landscape while dragging */
+let liveLandscape = true;
+let keepPathOnLandscapeChange = false;
 
 [elOct, elScale, elPers, elLac].forEach(el=>{
   el.addEventListener('input', ()=>{
-    onParamChange(liveLandscape);      // 👈 ahora sí re-render “live”
+    onParamChange(liveLandscape);
     if (!keepPathOnLandscapeChange) resetPath(true);
   });
-
-  // por si liveLandscape=false, al soltar sí aplica:
   el.addEventListener('change', ()=>{
     onParamChange(true);
     if (!keepPathOnLandscapeChange) resetPath(true);
   });
 });
 
+/* other controls */
 [elMode, elLR, elSAStep, elTemp, elCool, elSPF].forEach(el=>{
   el.addEventListener('input', ()=>{
     if (el === elTemp) T = parseFloat(elTemp.value);
@@ -932,22 +933,17 @@ btnNewSeed.addEventListener('click', ()=>{
   newLandscape(s);
 });
 btnRegen.addEventListener('click', ()=>{
-  needsRerender = true;
+  requestLandscapeRender();
   draw();
 });
-btnToggle.addEventListener('click', ()=>{
-  running = !running;
-});
-btnReset.addEventListener('click', ()=>{
-  resetPath(false);
-});
+btnToggle.addEventListener('click', ()=>{ running = !running; });
+btnReset.addEventListener('click', ()=>{ resetPath(false); });
 btnSnapBest.addEventListener('click', ()=>{
   pos = {...best};
   resetPath(true);
   draw();
 });
 
-/* Main loop */
 function tick(){
   const spf = parseInt(elSPF.value,10);
   if (running){
@@ -958,12 +954,14 @@ function tick(){
   requestAnimationFrame(tick);
 }
 
-/* init code */
+/* init */
 resize();
 setFromControls();
+initAllSliders();    // <-- makes sliders look like sliders (fill + glow)
 updateLabels();
 resetPath(true);
 tick();
 </script>
 </body>
 </html>
+```
