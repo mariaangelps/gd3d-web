@@ -629,6 +629,8 @@ let land = makeLandscape(seed);
 
 let running = false;
 let pos = {u:0.35, v:0.55};
+let posVis = {u: pos.u, v: pos.v};
+let prevPos = {u: pos.u, v: pos.v};
 let start = {...pos};
 let best = {...pos};
 let bestE = Infinity;
@@ -1033,7 +1035,7 @@ function drawOverlay(){
 
   dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");
   dot(best.u, best.v,   6.8*dpr, "rgba(52,211,153,.95)");
-  dot(pos.u, pos.v,     6.8*dpr, "rgba(125,211,252,.98)");
+  dot(posVis.u, posVis.v, 6.8*dpr, "rgba(125,211,252,.98)");
   dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)");
 
 }
@@ -1110,8 +1112,8 @@ function renderScene(){
 
 /* ---------- optimizer step (smoothed) ---------- */
 function stepOnce(){
+  prevPos = {...pos};
   const mode = parseInt(elMode.value,10);
-
   // to reduce jaggedness: do micro-steps inside one "step"
   const micro = 3;
 
@@ -1175,7 +1177,79 @@ function canvasToUV(ev){
   const y = (ev.clientY - r.top) / r.height;
   return {u: clamp01(x), v: clamp01(y)};
 }
+function pickUV3D(ev){
+  const r = view.getBoundingClientRect();
+  const mx = (ev.clientX - r.left) * dpr;
+  const my = (ev.clientY - r.top) * dpr;
 
+  const n = grid.n;
+  const h = grid.h;
+  const min = grid.min, max = grid.max;
+  const range = (max-min)||1;
+  const zEx = parseFloat(elZEx.value);
+
+  // use SAME camera transform as render3D + overlay
+  const cx = W*0.5 + cam.panX*dpr;
+  const cy = H*0.52 + cam.panY*dpr;
+  const scale = Math.min(W,H) * 0.62 * cam.zoom;
+
+  let best = {u:0.5, v:0.5};
+  let bestD2 = Infinity;
+
+  // coarse step for speed, then refine near best
+  const step = Math.max(1, Math.floor(n/70)); // ~70 samples per axis
+  for(let j=0;j<n;j+=step){
+    const v = j/(n-1);
+    const y = v*2-1;
+    for(let i=0;i<n;i+=step){
+      const u = i/(n-1);
+      const x = u*2-1;
+
+      const e = h[j*n+i];
+      const t = (e-min)/range;
+      const z = (t*2-1)*zEx;
+
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+
+      const dx = sx - mx, dy = sy - my;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD2){
+        bestD2 = d2;
+        best = {u, v, i, j};
+      }
+    }
+  }
+
+  // refine in a small neighborhood
+  const rad = Math.max(2, step*2);
+  for(let jj=Math.max(0,best.j-rad); jj<=Math.min(n-1,best.j+rad); jj++){
+    const v = jj/(n-1);
+    const y = v*2-1;
+    for(let ii=Math.max(0,best.i-rad); ii<=Math.min(n-1,best.i+rad); ii++){
+      const u = ii/(n-1);
+      const x = u*2-1;
+
+      const e = h[jj*n+ii];
+      const t = (e-min)/range;
+      const z = (t*2-1)*zEx;
+
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+
+      const dx = sx - mx, dy = sy - my;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD2){
+        bestD2 = d2;
+        best = {u, v};
+      }
+    }
+  }
+
+  return {u: clamp01(best.u), v: clamp01(best.v)};
+}
 let movedWhileDown = false;
 
 view.addEventListener('pointerdown', ()=>{ 
@@ -1189,7 +1263,8 @@ view.addEventListener('pointermove', ()=>{
 view.addEventListener('click', (ev)=>{
   if (parseInt(elViewMode.value,10) === 1 && movedWhileDown) return;
 
-  const uv = canvasToUV(ev);
+  const is3D = parseInt(elViewMode.value,10) === 1;
+  const uv = is3D ? pickUV3D(ev) : canvasToUV(ev);
   pos = {u: uv.u, v: uv.v};
   start = {...pos};
   running = false;
@@ -1328,6 +1403,10 @@ function tick(now = performance.now()){
   }
 
   updateLabels();
+  // smooth visual motion (ball rolling feel)
+  const follow = 1 - Math.exp(-dt * 18); // higher = snappier
+  posVis.u += (pos.u - posVis.u) * follow;
+  posVis.v += (pos.v - posVis.v) * follow;
   renderScene();
   requestAnimationFrame(tick);
 }
