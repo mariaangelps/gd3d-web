@@ -895,17 +895,27 @@ document.addEventListener('keydown', (e)=>{
 function onParamChange(reRender=false){
   setFromControls();
   updateLabels();
-  if (reRender) needsRerender = true;
+  if (reRender) requestLandscapeRender();
 }
 
+
 /* Wire controls */
+let liveLandscape = true;   // cambia a false si quieres que solo regenere al soltar
+let keepPathOnLandscapeChange = false; // true = no resetea el path
+
 [elOct, elScale, elPers, elLac].forEach(el=>{
-  el.addEventListener('input', ()=>onParamChange(false));
+  el.addEventListener('input', ()=>{
+    onParamChange(liveLandscape);      // 👈 ahora sí re-render “live”
+    if (!keepPathOnLandscapeChange) resetPath(true);
+  });
+
+  // por si liveLandscape=false, al soltar sí aplica:
   el.addEventListener('change', ()=>{
     onParamChange(true);
-    resetPath(true);
+    if (!keepPathOnLandscapeChange) resetPath(true);
   });
 });
+
 [elMode, elLR, elSAStep, elTemp, elCool, elSPF].forEach(el=>{
   el.addEventListener('input', ()=>{
     if (el === elTemp) T = parseFloat(elTemp.value);
