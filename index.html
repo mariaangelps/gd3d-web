@@ -417,12 +417,13 @@
           </div>
 
           <div class="rowCtrl">
-            <label>Steps / frame <span class="val" id="vSPF">—</span></label>
-            <input id="spf" type="range" min="1" max="24" step="1" value="8"/>
+            <label>Steps / second <span class="val" id="vSPF">—</span></label>
+            <input id="spf" type="range" min="1" max="180" step="1" value="40"/>
           </div>
 
           <div class="btns">
             <button id="toggle">Run / Pause</button>
+            <button class="secondary" id="stepOne">Step</button>
             <button class="secondary" id="reset">Reset path</button>
             <button class="danger" id="snapBest">Snap to best</button>
           </div>
@@ -607,6 +608,7 @@ const btnRegen = document.getElementById('regen');
 const btnToggle = document.getElementById('toggle');
 const btnReset = document.getElementById('reset');
 const btnSnapBest = document.getElementById('snapBest');
+const btnStepOne = document.getElementById('stepOne');
 
 /* ---------- canvas sizing ---------- */
 let W=0,H=0, dpr=1;
@@ -630,7 +632,7 @@ let pos = {u:0.35, v:0.55};
 let start = {...pos};
 let best = {...pos};
 let bestE = Infinity;
-
+let globalMin = {u: 0.5, v: 0.5, e: Infinity};
 let T = parseFloat(elTemp.value);
 let accepted = 0, proposed = 0;
 let stepCount = 0;
@@ -796,6 +798,15 @@ function buildGrid(){
       if(e>max) max=e;
     }
   }
+  // compute approximate global min from sampled grid
+let bestIdx = 0;
+let bestVal = Infinity;
+for (let k=0;k<h.length;k++){
+  if (h[k] < bestVal){ bestVal = h[k]; bestIdx = k; }
+}
+const gi = bestIdx % n;
+const gj = (bestIdx / n) | 0;
+globalMin = { u: gi/(n-1), v: gj/(n-1), e: bestVal };
   grid = {n, h, min, max};
 }
 
@@ -1091,6 +1102,8 @@ function renderScene(){
   }
 
   drawOverlay();
+  // global minimum marker (purple)
+  dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)");
   drawSpark();
 }
 
@@ -1103,16 +1116,16 @@ function stepOnce(){
 
   for(let m=0;m<micro;m++){
     if (mode === 0){
-      // GD
       const lr = parseFloat(elLR.value) / micro;
       const g = land.grad(pos.u, pos.v);
-      const gn = Math.hypot(g.du, g.dv) || 1;
 
-      pos.u = clamp01(pos.u - lr*(g.du/gn));
-      pos.v = clamp01(pos.v - lr*(g.dv/gn));
+      // NO normalices: así se ve “bajar por la pendiente”
+      pos.u = clamp01(pos.u - lr * g.du);
+      pos.v = clamp01(pos.v - lr * g.dv);
 
-      const e = land.energy(pos.u,pos.v);
-      if (e < bestE){ bestE = e; best = {...pos}; }
+      const eNow = land.energy(pos.u, pos.v);
+      if (eNow < bestE){ bestE = eNow; best = {...pos}; }
+
     } else {
       // SA
       const stepSize = parseFloat(elSAStep.value);
@@ -1178,6 +1191,8 @@ view.addEventListener('click', (ev)=>{
   const uv = canvasToUV(ev);
   pos = {u: uv.u, v: uv.v};
   start = {...pos};
+  running = false;
+  stepBudget = 0;
   resetPath(true);
 });
 
@@ -1278,6 +1293,12 @@ btnNewSeed.addEventListener('click', ()=>{
   newLandscape(s);
 });
 btnRegen.addEventListener('click', ()=>{ needsRerender = true; });
+btnStepOne.addEventListener('click', ()=>{
+  running = false;
+  stepOnce();
+  updateLabels();
+  renderScene();
+});
 btnToggle.addEventListener('click', ()=>{ running = !running; });
 btnReset.addEventListener('click', ()=>{ resetPath(false); });
 btnSnapBest.addEventListener('click', ()=>{
@@ -1286,11 +1307,25 @@ btnSnapBest.addEventListener('click', ()=>{
 });
 
 /* ---------- loop ---------- */
-function tick(){
-  const spf = parseInt(elSPF.value,10);
+let lastTime = performance.now();
+let stepBudget = 0; // acumulador de pasos
+
+function tick(now = performance.now()){
+  const dt = Math.min(0.05, (now - lastTime) / 1000); // segundos, clamp
+  lastTime = now;
+
+  const stepsPerSecond = parseInt(elSPF.value, 10);
   if (running){
-    for (let i=0;i<spf;i++) stepOnce();
+    stepBudget += stepsPerSecond * dt;
+
+    // ejecuta SOLO los pasos que caben en el budget (smooth)
+    const maxStepsThisFrame = 12; // evita lag spikes
+    let steps = Math.min(maxStepsThisFrame, Math.floor(stepBudget));
+    stepBudget -= steps;
+
+    while (steps-- > 0) stepOnce();
   }
+
   updateLabels();
   renderScene();
   requestAnimationFrame(tick);
