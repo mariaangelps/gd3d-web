@@ -290,8 +290,8 @@
       line-height:1.35;
     }
 
-    .saOnlyBlock{ display:none; }
-    .saMode .saOnlyBlock{ display:block; }
+    .saOnlyBlock{ display:block; opacity:1; transition: opacity .15s ease; }
+    .saMode .saOnlyBlock{ opacity:1; }
   </style>
 </head>
 
@@ -1298,8 +1298,14 @@ function setModeUI(){
   const sa = parseInt(elMode.value,10) === 1;
   panelBox.classList.toggle('saMode', sa);
   hudBox.classList.toggle('sa', sa);
-}
 
+  // Temperature visible always, but only interactive in SA
+  elTemp.disabled = !sa;
+  const tempBlock = elTemp.closest('.saOnlyBlock');
+  if (tempBlock){
+    tempBlock.style.opacity = sa ? "1" : "0.45";
+  }
+}
 function updateLabels(){
   const view3D = parseInt(elViewMode.value,10)===1;
   const sa = parseInt(elMode.value,10)===1;
