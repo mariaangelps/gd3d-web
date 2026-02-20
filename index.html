@@ -1,4 +1,4 @@
-```html
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,11 +14,12 @@
       --good:#34d399;
       --warn:#fbbf24;
       --bad:#fb7185;
-      --purple:#a855f7;
 
+      /* slider theme */
       --sliderTrack: rgba(125,211,252,.18);
       --sliderFill: rgba(125,211,252,.85);
       --sliderGlow: rgba(125,211,252,.35);
+      --sliderThumb: rgba(231,240,255,.95);
       --sliderThumbEdge: rgba(125,211,252,.55);
     }
 
@@ -29,6 +30,7 @@
       color:var(--ink);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
       letter-spacing:.2px;
+      overflow:hidden;
     }
 
     .wrap{
@@ -84,14 +86,10 @@
       position:relative;
       min-height:0;
       background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.4));
+      touch-action:none;
     }
 
-    canvas{
-      display:block;
-      width:100%;
-      height:100%;
-      touch-action:none; /* important: prevents browser gestures */
-    }
+    canvas{ display:block; width:100%; height:100%; }
 
     .hint{
       position:absolute;
@@ -275,9 +273,10 @@
     .tag{display:flex; align-items:center; gap:8px}
     .dot{width:10px; height:10px; border-radius:50%}
     .dot.g{background:var(--good)}
+    .dot.a{background:var(--warn)}
     .dot.b{background:var(--bad)}
     .dot.c{background:var(--accent)}
-    .dot.p{background:var(--purple)}
+    .dot.p{background:rgba(168,85,247,.95)}
 
     .kbd{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -298,10 +297,10 @@
     .chk{
       display:flex;
       align-items:center;
-      gap:8px;
+      gap:10px;
       font-size:12px;
-      color:rgba(215,227,255,.9);
-      user-select:none;
+      color:rgba(215,227,255,.92);
+      margin-top:8px;
     }
     .chk input{ transform: translateY(1px); }
   </style>
@@ -312,7 +311,7 @@
     <section class="card main">
       <div class="hdr">
         <div class="title">Procedural hello · fBM (Brownian Field) · Optimization</div>
-        <div class="sub">Click set start · 2D/3D · Local vs Global · Drag rotate · Shift/RMB pan · Wheel zoom</div>
+        <div class="sub">Click to set start · 2D/3D · Local vs Global</div>
       </div>
 
       <div class="canvasWrap">
@@ -326,21 +325,26 @@
           <div class="row"><span class="k">Accepted</span><span class="v" id="hudAcc">—</span></div>
           <div class="row"><span class="k">Temp</span><span class="v" id="hudT">—</span></div>
           <div class="row"><span class="k">LR</span><span class="v" id="hudLR">—</span></div>
-          <div class="row"><span class="k">Replay</span><span class="v" id="hudReplay">—</span></div>
+          <div class="row"><span class="k">Global min (grid)</span><span class="v" id="hudG">—</span></div>
         </div>
 
         <div class="hint">
           <div>
-            <span class="kbd">Click</span> set start · <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset
+            <span class="kbd">Click</span> set start ·
+            <span class="kbd">Space</span> run/pause ·
+            <span class="kbd">R</span> reset ·
+            <span class="kbd">Drag</span> rotate ·
+            <span class="kbd">Shift+Drag</span> pan ·
+            <span class="kbd">Wheel</span> zoom
           </div>
         </div>
       </div>
 
       <div class="footer">
         <div class="legend">
+          <div class="tag"><span class="dot b"></span>Start</div>
           <div class="tag"><span class="dot c"></span>Current</div>
           <div class="tag"><span class="dot g"></span>Best found</div>
-          <div class="tag"><span class="dot b"></span>Start</div>
           <div class="tag"><span class="dot p"></span>Global min (grid)</div>
         </div>
         <canvas id="spark" width="220" height="44"
@@ -374,7 +378,7 @@
           </div>
 
           <div class="btns">
-            <button class="secondary" id="centerCam">Center camera</button>
+            <button class="secondary" id="centerCam">Center</button>
           </div>
         </div>
 
@@ -436,20 +440,14 @@
           </div>
 
           <div class="rowCtrl">
-            <label>Steps / second <span class="val" id="vSPS">—</span></label>
-            <input id="sps" type="range" min="1" max="180" step="1" value="35"/>
-          </div>
-
-          <div class="rowCtrl">
-            <label>Replay speed (slow-mo) <span class="val" id="vReplay">—</span></label>
-            <input id="replaySpeed" type="range" min="0.05" max="0.45" step="0.01" value="0.18"/>
+            <label>Steps / second <span class="val" id="vSPF">—</span></label>
+            <input id="spf" type="range" min="1" max="180" step="1" value="40"/>
           </div>
 
           <div class="btns">
             <button id="toggle">Run / Pause</button>
             <button class="secondary" id="stepOne">Step</button>
             <button class="secondary" id="reset">Reset path</button>
-            <button class="secondary" id="replayBtn">Replay (slow)</button>
             <button class="danger" id="snapBest">Snap to best</button>
           </div>
 
@@ -457,11 +455,13 @@
             <input type="checkbox" id="autoReplay" checked />
             <span>Auto-replay when GD stops / you pause</span>
           </div>
+          <div class="chk">
+            <input type="checkbox" id="ballCam" />
+            <span>Ball-cam (first person)</span>
+          </div>
         </div>
 
         <div class="note">
-          <b>GD:</b> stops automatically when converged (tiny gradient / tiny improvement).
-          <br/><br/>
           <b>SA (Metropolis):</b> accept if ΔE ≤ 0 else accept with probability exp(-ΔE/T).
           <br/><br/>
           <b>Tip:</b> more <i>Octaves</i> ⇒ more local minima ⇒ GD gets trapped; SA can escape early with higher T.
@@ -572,10 +572,6 @@ function makeLandscape(seed){
   return { params, energy, grad };
 }
 
-/* ---------- helpers ---------- */
-function clamp01(x){ return Math.min(1, Math.max(0, x)); }
-function smoothstep(t){ t = Math.max(0, Math.min(1, t)); return t*t*(3-2*t); }
-
 /* ---------- slider fill ---------- */
 function setSliderPercent(el){
   const min = parseFloat(el.min);
@@ -613,11 +609,10 @@ const elLR = document.getElementById('lr');
 const elSAStep = document.getElementById('saStep');
 const elTemp = document.getElementById('temp');
 const elCool = document.getElementById('cool');
-const elSPS = document.getElementById('sps');
+const elSPF = document.getElementById('spf');
 
-const elReplaySpeed = document.getElementById('replaySpeed');
-const btnReplay = document.getElementById('replayBtn');
 const elAutoReplay = document.getElementById('autoReplay');
+const elBallCam = document.getElementById('ballCam');
 
 const vView = document.getElementById('vView');
 const vZ = document.getElementById('vZ');
@@ -633,8 +628,7 @@ const vLR = document.getElementById('vLR');
 const vStep = document.getElementById('vStep');
 const vTemp = document.getElementById('vTemp');
 const vCool = document.getElementById('vCool');
-const vSPS = document.getElementById('vSPS');
-const vReplay = document.getElementById('vReplay');
+const vSPF = document.getElementById('vSPF');
 
 const hudView = document.getElementById('hudView');
 const hudMode = document.getElementById('hudMode');
@@ -643,7 +637,7 @@ const hudStep = document.getElementById('hudStep');
 const hudAcc = document.getElementById('hudAcc');
 const hudT = document.getElementById('hudT');
 const hudLR = document.getElementById('hudLR');
-const hudReplay = document.getElementById('hudReplay');
+const hudG = document.getElementById('hudG');
 
 const btnNewSeed = document.getElementById('newSeed');
 const btnRegen = document.getElementById('regen');
@@ -676,32 +670,22 @@ let start = {...pos};
 let best = {...pos};
 let bestE = Infinity;
 
-let posVis = {...pos};      // visual “rolling” position
-let prevPos = {...pos};     // last pos
-
-let globalMin = {u:0.5, v:0.5, e:Infinity};
+let globalMin = {u: 0.5, v: 0.5, e: Infinity};
 
 let T = parseFloat(elTemp.value);
 let accepted = 0, proposed = 0;
 let stepCount = 0;
-let stagnant = 0;
-
-// convergence thresholds (GD)
-const STOP_GRAD = 2e-3;
-const STOP_DE = 1e-6;
-const STOP_DUV = 5e-5;
-const STOP_PATIENCE = 25;
 
 let trail = [];
 let energies = [];
 
 let needsRerender = true;
 let cached2D = null;
+let cacheMinMax = {min:0,max:1};
 
-// 3D cache (height samples)
 let grid = {n:90, h:null, min:0, max:1};
 
-// camera
+/* --- Orbit camera (drag rotate, wheel zoom, shift+drag pan) --- */
 let cam = {
   yaw: -0.9,
   pitch: 0.85,
@@ -714,10 +698,7 @@ let cam = {
   lastY: 0
 };
 
-// replay
-let replaying = false;
-let replayT = 0;
-let replayPath = [];
+function clamp01(x){ return Math.min(1, Math.max(0, x)); }
 
 /* ---------- controls -> params ---------- */
 function setFromControls(){
@@ -727,12 +708,38 @@ function setFromControls(){
   land.params.lacunarity = parseFloat(elLac.value);
 }
 
+function updateLabels(){
+  vView.textContent = (parseInt(elViewMode.value,10)===0) ? "2D" : "3D";
+  vZ.textContent = (+elZEx.value).toFixed(2);
+  vRes.textContent = elGridRes.value;
+
+  vOct.textContent = elOct.value;
+  vScale.textContent = (+elScale.value).toFixed(2);
+  vPers.textContent = (+elPers.value).toFixed(2);
+  vLac.textContent = (+elLac.value).toFixed(2);
+
+  vMode.textContent = (parseInt(elMode.value,10)===0) ? "GD" : "SA";
+  vLR.textContent = (+elLR.value).toFixed(3);
+  vStep.textContent = (+elSAStep.value).toFixed(3);
+  vTemp.textContent = (+elTemp.value).toFixed(3);
+  vCool.textContent = (+elCool.value).toFixed(4);
+  vSPF.textContent = elSPF.value;
+
+  hudView.textContent = vView.textContent;
+  hudMode.textContent = vMode.textContent;
+  hudLR.textContent = (+elLR.value).toFixed(3);
+  hudT.textContent = (parseInt(elMode.value,10)===1) ? T.toFixed(3) : "—";
+  hudStep.textContent = String(stepCount);
+  hudAcc.textContent = (parseInt(elMode.value,10)===1) ? `${accepted}/${Math.max(1,proposed)}` : "—";
+  hudF.textContent = land.energy(pos.u,pos.v).toFixed(4);
+  hudG.textContent = `${globalMin.e.toFixed(4)} @ (${globalMin.u.toFixed(2)},${globalMin.v.toFixed(2)})`;
+}
+
 /* ---------- reset ---------- */
 function resetPath(keepStart=false){
   stepCount = 0;
   accepted = 0;
   proposed = 0;
-  stagnant = 0;
   T = parseFloat(elTemp.value);
 
   if (!keepStart) pos = {u: start.u, v: start.v};
@@ -742,10 +749,6 @@ function resetPath(keepStart=false){
 
   trail = [{...pos}];
   energies = [bestE];
-
-  posVis = {...pos};
-  prevPos = {...pos};
-
   updateLabels();
 }
 
@@ -758,7 +761,7 @@ function newLandscape(newSeed){
   resetPath(true);
 }
 
-/* ---------- color ramp for 2D/3D ---------- */
+/* ---------- color ramp for 2D ---------- */
 function ramp(t){
   const a=[10,18,40], b=[16,36,88], c=[70,110,190], d=[170,210,255], e=[245,220,130];
   const mix=(p,q,x)=>[p[0]+(q[0]-p[0])*x,p[1]+(q[1]-p[1])*x,p[2]+(q[2]-p[2])*x];
@@ -787,6 +790,7 @@ function render2D(){
       if (e>max) max=e;
     }
   }
+  cacheMinMax = {min,max};
   const range = (max-min) || 1;
 
   k=0;
@@ -796,6 +800,7 @@ function render2D(){
       const e = E[idx];
       const t = (e - min)/range;
 
+      // fake lighting using gradient magnitude
       const ex = E[Math.min(W*H-1, idx+1)] - E[Math.max(0, idx-1)];
       const ey = E[Math.min(W*H-1, idx+W)] - E[Math.max(0, idx-W)];
       const shade = 0.55 + 0.45 / (1.0 + 18.0*Math.hypot(ex,ey));
@@ -834,7 +839,7 @@ function buildGrid(){
     }
   }
 
-  // global min (approx from sampled grid)
+  // compute approximate global min from sampled grid
   let bestIdx = 0;
   let bestVal = Infinity;
   for (let k=0;k<h.length;k++){
@@ -847,15 +852,17 @@ function buildGrid(){
   grid = {n, h, min, max};
 }
 
-/* ---------- 3D projection with camera ---------- */
+/* ---------- 3D projection ---------- */
 function isoProject(x, y, z){
   const cy = Math.cos(cam.yaw),  sy = Math.sin(cam.yaw);
   const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
 
+  // yaw around Z
   let xr = x*cy - y*sy;
   let yr = x*sy + y*cy;
   let zr = z;
 
+  // pitch around X
   let yr2 = yr*cp - zr*sp;
   let zr2 = yr*sp + zr*cp;
 
@@ -881,10 +888,10 @@ function render3D(){
   ctx.clearRect(0,0,W,H);
   ctx.save();
 
-  const haze = ctx.createRadialGradient(cx, cy*0.85, scale*0.2, cx, cy, scale*1.2);
-  haze.addColorStop(0, "rgba(125,211,252,.10)");
-  haze.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = haze;
+  const g = ctx.createRadialGradient(cx, cy*0.85, scale*0.2, cx, cy, scale*1.2);
+  g.addColorStop(0, "rgba(125,211,252,.10)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
   ctx.fillRect(0,0,W,H);
 
   function Z(i,j){
@@ -913,7 +920,6 @@ function render3D(){
     }
   }
 
-  // subtle wire
   ctx.globalAlpha = 0.08;
   ctx.strokeStyle = "rgba(125,211,252,.8)";
   ctx.lineWidth = 1*dpr;
@@ -944,7 +950,6 @@ function render3D(){
     }
     ctx.stroke();
   }
-
   ctx.restore();
 
   function drawTri(ax,ay,az, bx,by,bz, cx0,cy0,cz0){
@@ -985,7 +990,7 @@ function render3D(){
   }
 }
 
-/* ---------- mapping uv->screen ---------- */
+/* ---------- overlay helpers ---------- */
 function uvToScreen2D(u,v){
   return {x: u*(W-1), y: v*(H-1)};
 }
@@ -995,15 +1000,10 @@ function uvToScreen3D(u,v){
   const y = v*2 - 1;
   const zEx = parseFloat(elZEx.value);
 
-  // height from grid sample (same surface as render3D)
-  const n = grid.n;
-  const i = Math.max(0, Math.min(n-1, Math.round(u*(n-1))));
-  const j = Math.max(0, Math.min(n-1, Math.round(v*(n-1))));
-  const e = grid.h[j*n + i];
-
+  const e = land.energy(u,v);
   const min = grid.min, max = grid.max;
   const range = (max-min)||1;
-  const t = (e - min)/range;
+  const t = (e-min)/range;
   const z = (t*2 - 1) * zEx;
 
   const cx = W*0.5 + cam.panX*dpr;
@@ -1014,89 +1014,32 @@ function uvToScreen3D(u,v){
   return {x: cx + p.x*scale, y: cy + p.y*scale};
 }
 
-/* ---------- 3D pick: click on terrain ---------- */
-function pickUV3D(ev){
-  const r = view.getBoundingClientRect();
-  const mx = (ev.clientX - r.left) * dpr;
-  const my = (ev.clientY - r.top) * dpr;
-
-  const n = grid.n;
-  const h = grid.h;
-  const min = grid.min, max = grid.max;
-  const range = (max-min)||1;
-  const zEx = parseFloat(elZEx.value);
-
-  const cx = W*0.5 + cam.panX*dpr;
-  const cy = H*0.52 + cam.panY*dpr;
-  const scale = Math.min(W,H) * 0.62 * cam.zoom;
-
-  let best = {u:0.5, v:0.5, i:0, j:0};
-  let bestD2 = Infinity;
-
-  const step = Math.max(1, Math.floor(n/70));
-  for(let jj=0;jj<n;jj+=step){
-    const v = jj/(n-1);
-    const y = v*2-1;
-    for(let ii=0;ii<n;ii+=step){
-      const u = ii/(n-1);
-      const x = u*2-1;
-
-      const e = h[jj*n+ii];
-      const t = (e-min)/range;
-      const z = (t*2-1)*zEx;
-
-      const p = isoProject(x,y,z);
-      const sx = cx + p.x*scale;
-      const sy = cy + p.y*scale;
-
-      const dx = sx - mx, dy = sy - my;
-      const d2 = dx*dx + dy*dy;
-      if (d2 < bestD2){
-        bestD2 = d2;
-        best = {u, v, i:ii, j:jj};
-      }
-    }
-  }
-
-  const rad = Math.max(2, step*2);
-  for(let jj=Math.max(0,best.j-rad); jj<=Math.min(n-1,best.j+rad); jj++){
-    const v = jj/(n-1);
-    const y = v*2-1;
-    for(let ii=Math.max(0,best.i-rad); ii<=Math.min(n-1,best.i+rad); ii++){
-      const u = ii/(n-1);
-      const x = u*2-1;
-
-      const e = h[jj*n+ii];
-      const t = (e-min)/range;
-      const z = (t*2-1)*zEx;
-
-      const p = isoProject(x,y,z);
-      const sx = cx + p.x*scale;
-      const sy = cy + p.y*scale;
-
-      const dx = sx - mx, dy = sy - my;
-      const d2 = dx*dx + dy*dy;
-      if (d2 < bestD2){
-        bestD2 = d2;
-        best = {u, v};
-      }
-    }
-  }
-
-  return {u: clamp01(best.u), v: clamp01(best.v)};
+function drawDot(u,v,r,fill){
+  const s = (parseInt(elViewMode.value,10)===1) ? uvToScreen3D(u,v) : uvToScreen2D(u,v);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(s.x,s.y,r,0,Math.PI*2);
+  ctx.fillStyle = fill;
+  ctx.shadowColor = fill;
+  ctx.shadowBlur = 12*dpr;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 2*dpr;
+  ctx.strokeStyle = "rgba(0,0,0,.35)";
+  ctx.stroke();
+  ctx.restore();
 }
 
-/* ---------- draw overlay: trail + dots ---------- */
 function drawOverlay(){
   const view3D = parseInt(elViewMode.value,10)===1;
 
-  // trail glow
   ctx.save();
   ctx.globalAlpha = 0.9;
   ctx.lineWidth = 2.2*dpr;
   ctx.strokeStyle = "rgba(125,211,252,.85)";
   ctx.shadowColor = "rgba(125,211,252,.35)";
   ctx.shadowBlur = 10*dpr;
+
   ctx.beginPath();
   for(let i=0;i<trail.length;i++){
     const p = trail[i];
@@ -1107,26 +1050,10 @@ function drawOverlay(){
   ctx.stroke();
   ctx.restore();
 
-  function dot(u,v,r,fill){
-    const s = view3D ? uvToScreen3D(u,v) : uvToScreen2D(u,v);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(s.x,s.y,r,0,Math.PI*2);
-    ctx.fillStyle = fill;
-    ctx.shadowColor = fill;
-    ctx.shadowBlur = 12*dpr;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 2*dpr;
-    ctx.strokeStyle = "rgba(0,0,0,.35)";
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");       // start
-  dot(best.u,  best.v,  6.8*dpr, "rgba(52,211,153,.95)");        // best found
-  dot(posVis.u,posVis.v,6.8*dpr, "rgba(125,211,252,.98)");        // current (visual)
-  dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)"); // global min (grid)
+  drawDot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)"); // start (red)
+  drawDot(best.u, best.v,   6.8*dpr, "rgba(52,211,153,.95)");  // best found (green)
+  drawDot(pos.u, pos.v,     6.8*dpr, "rgba(125,211,252,.98)"); // current (cyan)
+  drawDot(globalMin.u, globalMin.v,  7.2*dpr, "rgba(168,85,247,.95)"); // global min (purple)
 }
 
 /* ---------- sparkline ---------- */
@@ -1195,48 +1122,25 @@ function renderScene(){
   drawSpark();
 }
 
-/* ---------- optimizer step (with GD stop) ---------- */
+/* ---------- optimizer: visible + stop condition ---------- */
 function stepOnce(){
-  prevPos = {...pos};
-
   const mode = parseInt(elMode.value,10);
-  const micro = 3;
+
+  // micro-steps for smoother path
+  const micro = 2;
 
   for(let m=0;m<micro;m++){
     if (mode === 0){
       const lr = parseFloat(elLR.value) / micro;
-
-      const eBefore = land.energy(pos.u,pos.v);
-      const g = land.grad(pos.u,pos.v);
-      const gnorm = Math.hypot(g.du,g.dv);
-
-      const u0 = pos.u, v0 = pos.v;
+      const g = land.grad(pos.u, pos.v);
 
       pos.u = clamp01(pos.u - lr * g.du);
       pos.v = clamp01(pos.v - lr * g.dv);
 
-      const eAfter = land.energy(pos.u,pos.v);
-      if (eAfter < bestE){ bestE = eAfter; best = {...pos}; }
-
-      const duv = Math.hypot(pos.u - u0, pos.v - v0);
-      const dE = eBefore - eAfter;
-
-      const tinyGrad = gnorm < STOP_GRAD;
-      const tinyMove = duv < STOP_DUV;
-      const tinyImprove = dE < STOP_DE;
-
-      if (tinyGrad || (tinyMove && tinyImprove)) stagnant++;
-      else stagnant = 0;
-
-      if (stagnant >= STOP_PATIENCE){
-        running = false;
-        stepBudget = 0;
-        if (elAutoReplay.checked) startReplay();
-        break;
-      }
+      const eNow = land.energy(pos.u, pos.v);
+      if (eNow < bestE){ bestE = eNow; best = {...pos}; }
 
     } else {
-      // SA
       const stepSize = parseFloat(elSAStep.value);
       const cool = parseFloat(elCool.value);
 
@@ -1260,6 +1164,7 @@ function stepOnce(){
         pos.u = pu; pos.v = pv;
         if (newE < bestE){ bestE = newE; best = {...pos}; }
       }
+
       T *= Math.pow(cool, 1/micro);
     }
   }
@@ -1271,86 +1176,83 @@ function stepOnce(){
 
   if (trail.length > 2200) trail.splice(0, trail.length-2200);
   if (energies.length > 480) energies.splice(0, energies.length-480);
-}
 
-/* ---------- cinematic replay ---------- */
-function cameraZoomCurve(alpha){
-  const a = smoothstep(alpha);
-  const z0 = 0.85;
-  const z1 = 1.75;
-  return z0 + (z1 - z0) * a;
+  // STOP condition for GD (when gradient is tiny)
+  if (parseInt(elMode.value,10)===0){
+    const g = land.grad(pos.u,pos.v);
+    const gmag = Math.hypot(g.du, g.dv);
+    if (gmag < 2.5e-4){
+      running = false;
+    }
+  }
 }
-function cameraFollowUV(u,v,strength=0.10){
-  if (parseInt(elViewMode.value,10) !== 1) return;
-  const s = uvToScreen3D(u,v);
-  const tx = W*0.52, ty = H*0.52;
-  const dx = (tx - s.x)/dpr;
-  const dy = (ty - s.y)/dpr;
-  cam.panX += dx*strength;
-  cam.panY += dy*strength;
-}
-
-function startReplay(){
-  if (trail.length < 2) return;
-  replaying = true;
-  replayT = 0;
-  replayPath = trail.slice();
-  running = false;
-  stepBudget = 0;
-}
-function stopReplay(){ replaying = false; }
 
 /* ---------- interaction ---------- */
-function canvasToUV2D(ev){
+function canvasToUV(ev){
   const r = view.getBoundingClientRect();
   const x = (ev.clientX - r.left) / r.width;
   const y = (ev.clientY - r.top) / r.height;
   return {u: clamp01(x), v: clamp01(y)};
 }
 
-// stop browser context menu so RMB pan works
-view.addEventListener('contextmenu', (e)=> e.preventDefault());
-
 let movedWhileDown = false;
-let downX=0, downY=0;
 
-view.addEventListener('pointerdown', (e)=>{
-  movedWhileDown = false;
-  downX = e.clientX; downY = e.clientY;
-});
+view.addEventListener('pointerdown', ()=>{ movedWhileDown = false; });
+view.addEventListener('pointermove', ()=>{ movedWhileDown = true; });
 
-view.addEventListener('pointermove', (e)=>{
-  const dx = e.clientX - downX;
-  const dy = e.clientY - downY;
-  if (Math.hypot(dx,dy) > 6) movedWhileDown = true;
-});
-
-// click to set start (2D: direct; 3D: pick on terrain)
 view.addEventListener('click', (ev)=>{
-  // if we dragged camera, don't set start
   if (parseInt(elViewMode.value,10) === 1 && movedWhileDown) return;
 
-  const is3D = parseInt(elViewMode.value,10) === 1;
-  const uv = is3D ? pickUV3D(ev) : canvasToUV2D(ev);
-
+  const uv = canvasToUV(ev);
   pos = {u: uv.u, v: uv.v};
   start = {...pos};
-
   running = false;
-  stopReplay();
   stepBudget = 0;
-
   resetPath(true);
 });
 
-// --- Mouse controls for 3D view ---
+/* ---------- Ball-cam (first person) ---------- */
+function firstPersonBallCam(dt){
+  if (parseInt(elViewMode.value,10) !== 1) return;
+
+  const g = land.grad(pos.u, pos.v);
+  let dx = -g.du, dy = -g.dv;
+  const mag = Math.hypot(dx,dy);
+
+  if (mag > 1e-7){
+    dx /= mag; dy /= mag;
+    const yawTarget = Math.atan2(dy, dx);
+    const yawLerp = 1 - Math.exp(-dt * 8);
+    cam.yaw += (yawTarget - cam.yaw) * yawLerp;
+  }
+
+  const pitchTarget = 0.35;
+  cam.pitch += (pitchTarget - cam.pitch) * (1 - Math.exp(-dt * 6));
+
+  const zoomTarget = 1.85;
+  cam.zoom += (zoomTarget - cam.zoom) * (1 - Math.exp(-dt * 6));
+
+  const s = uvToScreen3D(pos.u, pos.v);
+  const targetX = W * 0.50;
+  const targetY = H * 0.72;
+
+  const panDx = (targetX - s.x) / dpr;
+  const panDy = (targetY - s.y) / dpr;
+
+  const panLerp = 1 - Math.exp(-dt * 10);
+  cam.panX += panDx * panLerp;
+  cam.panY += panDy * panLerp;
+}
+
+/* ---------- Mouse controls for 3D view ---------- */
 view.addEventListener('pointerdown', (e)=>{
   if (parseInt(elViewMode.value,10) !== 1) return;
+  if (elBallCam.checked) return;
 
   cam.dragging = true;
   cam.lastX = e.clientX;
   cam.lastY = e.clientY;
-  cam.mode = (e.shiftKey || e.button === 2) ? "pan" : "rotate";
+  cam.mode = e.shiftKey ? "pan" : "rotate";
   view.setPointerCapture(e.pointerId);
 });
 
@@ -1364,13 +1266,12 @@ view.addEventListener('pointermove', (e)=>{
   cam.lastY = e.clientY;
 
   if (cam.mode === "pan"){
-    const panSpeed = 1.0;
-    cam.panX += dx * panSpeed;
-    cam.panY += dy * panSpeed;
+    cam.panX += dx;
+    cam.panY += dy;
   } else {
     cam.yaw   += dx * 0.006;
     cam.pitch += dy * 0.006;
-    cam.pitch = Math.max(-0.2, Math.min(1.55, cam.pitch));
+    cam.pitch = Math.max(0.15, Math.min(1.45, cam.pitch));
   }
 });
 
@@ -1378,47 +1279,21 @@ view.addEventListener('pointerup', ()=>{
   cam.dragging = false;
 });
 
+// wheel zoom
 view.addEventListener('wheel', (e)=>{
   if (parseInt(elViewMode.value,10) !== 1) return;
+  if (elBallCam.checked) return;
   e.preventDefault();
+
   const factor = Math.exp(-e.deltaY * 0.0012);
   cam.zoom *= factor;
   cam.zoom = Math.max(0.55, Math.min(2.2, cam.zoom));
 }, { passive:false });
 
 document.addEventListener('keydown', (e)=>{
-  if (e.code === 'Space'){ e.preventDefault(); running = !running; if(running) stopReplay(); }
+  if (e.code === 'Space'){ e.preventDefault(); running = !running; }
   if (e.key.toLowerCase() === 'r'){ resetPath(false); }
 });
-
-/* ---------- labels ---------- */
-function updateLabels(){
-  vView.textContent = (parseInt(elViewMode.value,10)===0) ? "2D" : "3D";
-  vZ.textContent = (+elZEx.value).toFixed(2);
-  vRes.textContent = elGridRes.value;
-
-  vOct.textContent = elOct.value;
-  vScale.textContent = (+elScale.value).toFixed(2);
-  vPers.textContent = (+elPers.value).toFixed(2);
-  vLac.textContent = (+elLac.value).toFixed(2);
-
-  vMode.textContent = (parseInt(elMode.value,10)===0) ? "GD" : "SA";
-  vLR.textContent = (+elLR.value).toFixed(3);
-  vStep.textContent = (+elSAStep.value).toFixed(3);
-  vTemp.textContent = (+elTemp.value).toFixed(3);
-  vCool.textContent = (+elCool.value).toFixed(4);
-  vSPS.textContent = elSPS.value;
-  vReplay.textContent = (+elReplaySpeed.value).toFixed(2);
-
-  hudView.textContent = vView.textContent;
-  hudMode.textContent = vMode.textContent;
-  hudLR.textContent = (+elLR.value).toFixed(3);
-  hudT.textContent = (parseInt(elMode.value,10)===1) ? T.toFixed(3) : "—";
-  hudStep.textContent = String(stepCount);
-  hudAcc.textContent = (parseInt(elMode.value,10)===1) ? `${accepted}/${Math.max(1,proposed)}` : "—";
-  hudF.textContent = land.energy(posVis.u,posVis.v).toFixed(4);
-  hudReplay.textContent = replaying ? "ON" : "—";
-}
 
 /* ---------- change handling ---------- */
 function onParamChange(fullRerender=false){
@@ -1441,7 +1316,7 @@ function onParamChange(fullRerender=false){
   });
 });
 
-[elMode, elLR, elSAStep, elTemp, elCool, elSPS, elReplaySpeed].forEach(el=>{
+[elMode, elLR, elSAStep, elTemp, elCool, elSPF].forEach(el=>{
   el.addEventListener('input', ()=>{
     if (el === elTemp) T = parseFloat(elTemp.value);
     updateLabels();
@@ -1452,58 +1327,30 @@ function onParamChange(fullRerender=false){
   });
 });
 
-/* ---------- buttons ---------- */
 btnCenterCam.addEventListener('click', ()=>{
-  cam.yaw = -0.9;
-  cam.pitch = 0.85;
-  cam.zoom = 1.0;
-  cam.panX = 0.0;
-  cam.panY = 0.0;
+  cam.panX = 0; cam.panY = 0; cam.zoom = 1.0; cam.yaw=-0.9; cam.pitch=0.85;
+  needsRerender = true;
 });
 
 btnNewSeed.addEventListener('click', ()=>{
   const s = (Date.now() ^ ((Math.random()*1e9)|0) ^ seed) >>> 0;
   newLandscape(s);
 });
-
 btnRegen.addEventListener('click', ()=>{ needsRerender = true; });
-
 btnStepOne.addEventListener('click', ()=>{
   running = false;
-  stopReplay();
   stepOnce();
   updateLabels();
   renderScene();
 });
-
-btnToggle.addEventListener('click', ()=>{
-  if (running){
-    running = false;
-    stepBudget = 0;
-    if (elAutoReplay.checked) startReplay();
-  } else {
-    stopReplay();
-    running = true;
-  }
-});
-
-btnReset.addEventListener('click', ()=>{
-  running = false;
-  stopReplay();
-  resetPath(false);
-});
-
+btnToggle.addEventListener('click', ()=>{ running = !running; });
+btnReset.addEventListener('click', ()=>{ resetPath(false); });
 btnSnapBest.addEventListener('click', ()=>{
-  running = false;
-  stopReplay();
   pos = {...best};
-  start = {...pos};
   resetPath(true);
 });
 
-btnReplay.addEventListener('click', startReplay);
-
-/* ---------- loop (time-based) ---------- */
+/* ---------- loop ---------- */
 let lastTime = performance.now();
 let stepBudget = 0;
 
@@ -1511,44 +1358,20 @@ function tick(now = performance.now()){
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  // run optimizer
-  const stepsPerSecond = parseInt(elSPS.value, 10);
+  const stepsPerSecond = parseInt(elSPF.value, 10);
   if (running){
     stepBudget += stepsPerSecond * dt;
-    const maxStepsThisFrame = 12;
+
+    const maxStepsThisFrame = 10;
     let steps = Math.min(maxStepsThisFrame, Math.floor(stepBudget));
     stepBudget -= steps;
+
     while (steps-- > 0) stepOnce();
   }
 
-  // replay (cinematic follow + zoom)
-  if (replaying && replayPath.length >= 2){
-    replayT += dt;
-    const speed = parseFloat(elReplaySpeed.value);
-    const alpha = Math.min(1, replayT * speed);
-
-    const f = alpha * (replayPath.length - 1);
-    const i0 = Math.floor(f);
-    const i1 = Math.min(replayPath.length - 1, i0 + 1);
-    const t = f - i0;
-
-    const p0 = replayPath[i0], p1 = replayPath[i1];
-    const uu = p0.u + (p1.u - p0.u) * t;
-    const vv = p0.v + (p1.v - p0.v) * t;
-
-    posVis.u = uu;
-    posVis.v = vv;
-
-    const zTarget = cameraZoomCurve(alpha);
-    cam.zoom += (zTarget - cam.zoom) * 0.08;
-    cameraFollowUV(uu, vv, 0.10);
-
-    if (alpha >= 1) replaying = false;
-  } else {
-    // smooth “ball rolling” when running/paused
-    const follow = 1 - Math.exp(-dt * 18);
-    posVis.u += (pos.u - posVis.u) * follow;
-    posVis.v += (pos.v - posVis.v) * follow;
+  // Ball-cam follow
+  if (elBallCam.checked && !cam.dragging){
+    firstPersonBallCam(dt);
   }
 
   updateLabels();
@@ -1566,4 +1389,4 @@ tick();
 </script>
 </body>
 </html>
-```
+
