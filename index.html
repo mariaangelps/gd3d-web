@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GD · Smoothness · Local vs Global (fBM 2D/3D)</title>
+  <title>GD / SA · Smoothness · Local vs Global (fBM 2D/3D)</title>
   <style>
     :root{
       --bg:#0b1020;
@@ -11,6 +11,7 @@
       --muted:#88a0d6;
       --accent:#7dd3fc;
       --good:#34d399;
+      --warn:#fbbf24;
       --bad:#fb7185;
       --purple:#a855f7;
 
@@ -88,7 +89,7 @@
       display:block;
       width:100%;
       height:100%;
-      touch-action:none; /* prevents browser gestures */
+      touch-action:none;
     }
 
     .hint{
@@ -113,11 +114,13 @@
       padding:10px 10px;
       border-radius:12px;
       backdrop-filter: blur(6px);
-      min-width:240px;
+      min-width:260px;
     }
     .hud .row{ display:flex; justify-content:space-between; gap:8px; margin:4px 0; }
     .hud .k{color:rgba(136,160,214,.95)}
     .hud .v{font-variant-numeric: tabular-nums; color:#e7f0ff}
+    .hud .saOnly{ display:none; }
+    .hud.sa .saOnly{ display:flex; }
 
     .panel{
       display:grid;
@@ -178,7 +181,6 @@
       cursor: pointer;
       --p: 50%;
     }
-
     .rowCtrl input[type="range"]::-webkit-slider-runnable-track{
       height: 6px;
       border-radius: 999px;
@@ -199,7 +201,6 @@
         0 10px 22px rgba(0,0,0,.45),
         0 0 18px rgba(125,211,252,.35);
     }
-
     .rowCtrl input[type="range"]::-moz-range-track{
       height: 6px;
       border-radius: 999px;
@@ -288,6 +289,9 @@
       color:rgba(136,160,214,.95);
       line-height:1.35;
     }
+
+    .saOnlyBlock{ display:none; }
+    .saMode .saOnlyBlock{ display:block; }
   </style>
 </head>
 
@@ -295,19 +299,22 @@
   <div class="wrap">
     <section class="card main">
       <div class="hdr">
-        <div class="title">fBM Landscape · Gradient Descent · Local vs Global</div>
+        <div class="title">fBM Landscape · GD vs Simulated Annealing · Local vs Global</div>
         <div class="sub">Click = set start · Space = run/pause · R = reset</div>
       </div>
 
       <div class="canvasWrap">
         <canvas id="view"></canvas>
 
-        <div class="hud">
+        <div class="hud" id="hudBox">
           <div class="row"><span class="k">View</span><span class="v" id="hudView">—</span></div>
-          <div class="row"><span class="k">Mode</span><span class="v" id="hudMode">GD</span></div>
+          <div class="row"><span class="k">Mode</span><span class="v" id="hudMode">—</span></div>
           <div class="row"><span class="k">f(x,y)</span><span class="v" id="hudF">—</span></div>
           <div class="row"><span class="k">Step</span><span class="v" id="hudStep">—</span></div>
           <div class="row"><span class="k">LR</span><span class="v" id="hudLR">—</span></div>
+
+          <div class="row saOnly"><span class="k">Temp</span><span class="v" id="hudT">—</span></div>
+          <div class="row saOnly"><span class="k">Accepted</span><span class="v" id="hudAcc">—</span></div>
         </div>
 
         <div class="hint">
@@ -320,7 +327,7 @@
       <div class="footer">
         <div class="legend">
           <div class="tag"><span class="dot c"></span>Current</div>
-          <div class="tag"><span class="dot g"></span>Best found (local)</div>
+          <div class="tag"><span class="dot g"></span>Best found</div>
           <div class="tag"><span class="dot b"></span>Start</div>
           <div class="tag"><span class="dot p"></span>Global min (approx)</div>
         </div>
@@ -329,10 +336,10 @@
       </div>
     </section>
 
-    <aside class="card panel">
+    <aside class="card panel" id="panelBox">
       <div class="hdr">
         <div class="title">Controls</div>
-        <div class="sub">Only what we need</div>
+        <div class="sub">minimal</div>
       </div>
 
       <div class="mini">
@@ -342,36 +349,40 @@
             <label>View (0=2D, 1=3D) <span class="val" id="vView">—</span></label>
             <input id="viewMode" type="range" min="0" max="1" step="1" value="1" />
           </div>
-          <div class="note">
-            3D helps show “traps” (local minima) visually.
-          </div>
+          <div class="note">Drag in 3D to rotate · Shift/right-drag to pan · Wheel to zoom.</div>
         </div>
 
         <div class="group">
           <div class="groupTitle">Landscape</div>
-
           <div class="rowCtrl">
             <label>Smoothness <span class="val" id="vSmooth">—</span></label>
             <input id="smooth" type="range" min="0" max="1" step="0.01" value="0.45"/>
           </div>
-
           <div class="btns">
             <button id="newSeed">New landscape</button>
           </div>
-
           <div class="note">
-            Smoothness ↓ → rough terrain → lots of little valleys (more local minima).
-            <br/>
-            Smoothness ↑ → smoother terrain → fewer traps.
+            Smoothness ↓ → rough terrain → more local minima (GD gets trapped).
+            <br/>Smoothness ↑ → smoother terrain.
           </div>
         </div>
 
         <div class="group">
-          <div class="groupTitle">Optimizer (Gradient Descent)</div>
+          <div class="groupTitle">Optimizer</div>
 
           <div class="rowCtrl">
-            <label>Learning rate <span class="val" id="vLR">—</span></label>
+            <label>Mode (0=GD, 1=SA) <span class="val" id="vMode">—</span></label>
+            <input id="mode" type="range" min="0" max="1" step="1" value="0" />
+          </div>
+
+          <div class="rowCtrl">
+            <label>Learning rate (GD) <span class="val" id="vLR">—</span></label>
             <input id="lr" type="range" min="0.001" max="0.08" step="0.001" value="0.02"/>
+          </div>
+
+          <div class="rowCtrl saOnlyBlock">
+            <label>Temperature (SA) <span class="val" id="vTemp">—</span></label>
+            <input id="temp" type="range" min="0.001" max="1.5" step="0.001" value="0.35"/>
           </div>
 
           <div class="rowCtrl">
@@ -387,8 +398,8 @@
           </div>
 
           <div class="note">
-            Click different starting points to show different <b>local optima</b>.
-            Purple dot is the <b>global minimum (approx)</b> from a grid scan.
+            Click different starts to show different <b>local optima</b>.
+            <br/><b>SA idea:</b> higher temperature accepts uphill moves more often, helping escape local minima.
           </div>
         </div>
       </div>
@@ -402,7 +413,7 @@ function mulberry32(seed){
   return function(){
     t += 0x6D2B79F5;
     let x = Math.imul(t ^ (t >>> 15), 1 | t);
-    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    x ^= x + Math.imul(x ^ (t >>> 7), 61 | x);
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 }
@@ -442,7 +453,7 @@ function makePerlin(seed){
 
     const x1 = lerp(grad(aa, xf,   yf),   grad(ba, xf-1, yf),   u);
     const x2 = lerp(grad(ab, xf,   yf-1), grad(bb, xf-1, yf-1), u);
-    return lerp(x1, x2, v) * 0.25; // ~[-1,1]
+    return lerp(x1, x2, v) * 0.25;
   }
   return { noise };
 }
@@ -524,20 +535,29 @@ const ctx = view.getContext('2d');
 const sctx = spark.getContext('2d', { alpha:true });
 
 const elViewMode = document.getElementById('viewMode');
-
 const elSmooth = document.getElementById('smooth');
+const elMode = document.getElementById('mode');
 const elLR = document.getElementById('lr');
+const elTemp = document.getElementById('temp');
 const elSPS = document.getElementById('sps');
 
 const vView = document.getElementById('vView');
 const vSmooth = document.getElementById('vSmooth');
+const vMode = document.getElementById('vMode');
 const vLR = document.getElementById('vLR');
+const vTemp = document.getElementById('vTemp');
 const vSPS = document.getElementById('vSPS');
 
+const hudBox = document.getElementById('hudBox');
 const hudView = document.getElementById('hudView');
+const hudMode = document.getElementById('hudMode');
 const hudF = document.getElementById('hudF');
 const hudStep = document.getElementById('hudStep');
 const hudLR = document.getElementById('hudLR');
+const hudT = document.getElementById('hudT');
+const hudAcc = document.getElementById('hudAcc');
+
+const panelBox = document.getElementById('panelBox');
 
 const btnNewSeed = document.getElementById('newSeed');
 const btnToggle = document.getElementById('toggle');
@@ -571,13 +591,17 @@ let start = {...pos};
 let best = {...pos};
 let bestE = Infinity;
 
-let posVis = {...pos};      // visual “rolling” position
-let prevPos = {...pos};     // last pos
+let posVis = {...pos};
+let prevPos = {...pos};
 
 let globalMin = {u:0.5, v:0.5, e:Infinity};
 
 let stepCount = 0;
 let stagnant = 0;
+
+// SA stats
+let T = parseFloat(elTemp.value);
+let accepted = 0, proposed = 0;
 
 // convergence thresholds (GD)
 const STOP_GRAD = 2e-3;
@@ -615,14 +639,9 @@ const REPLAY_SPEED = 0.22;
 
 /* ---------- smoothness -> landscape params ---------- */
 function setFromControls(){
-  // smooth=0 -> rough (many local minima)
-  // smooth=1 -> smooth (few local minima)
   const s = parseFloat(elSmooth.value);
-
   land.params.octaves = Math.round(9 - 7*s);  // 9 -> 2
   land.params.baseScale = 1.0 + 2.6*s;        // 1.0 -> 3.6
-
-  // fixed (no extra controls)
   land.params.persistence = 0.55;
   land.params.lacunarity  = 2.0;
 }
@@ -631,6 +650,11 @@ function setFromControls(){
 function resetPath(keepStart=false){
   stepCount = 0;
   stagnant = 0;
+
+  // reset SA trackers too (even if you're in GD, keeps it clean)
+  T = parseFloat(elTemp.value);
+  accepted = 0;
+  proposed = 0;
 
   if (!keepStart) pos = {u: start.u, v: start.v};
 
@@ -709,13 +733,12 @@ function render2D(){
       img.data[k++] = 255;
     }
   }
-
   cached2D = img;
 }
 
 /* ---------- build 3D grid + approximate global min ---------- */
 function buildGrid(){
-  const n = 90; // fixed (no UI)
+  const n = 90;
   const h = new Float32Array(n*n);
   let min=Infinity, max=-Infinity;
 
@@ -765,12 +788,11 @@ function render3D(){
   const max = grid.max;
   const range = (max-min)||1;
 
-  const zEx = 1.35; // fixed (no UI)
+  const zEx = 1.35;
   const cx = W*0.5 + cam.panX*dpr;
   const cy = H*0.52 + cam.panY*dpr;
   const scale = Math.min(W,H) * 0.62 * cam.zoom;
 
-  // light direction
   const L = {x:-0.45, y:-0.35, z:0.82};
   const Ln = Math.hypot(L.x,L.y,L.z); L.x/=Ln; L.y/=Ln; L.z/=Ln;
 
@@ -809,7 +831,6 @@ function render3D(){
     }
   }
 
-  // subtle wire
   ctx.globalAlpha = 0.08;
   ctx.strokeStyle = "rgba(125,211,252,.8)";
   ctx.lineWidth = 1*dpr;
@@ -890,7 +911,6 @@ function uvToScreen3D(u,v){
   const x = u*2 - 1;
   const y = v*2 - 1;
 
-  // height from grid sample (same surface as render3D)
   const n = grid.n;
   const i = Math.max(0, Math.min(n-1, Math.round(u*(n-1))));
   const j = Math.max(0, Math.min(n-1, Math.round(v*(n-1))));
@@ -955,14 +975,15 @@ function pickUV3D(ev){
   const rad = Math.max(2, step*2);
   for(let jj=Math.max(0,bestPick.j-rad); jj<=Math.min(n-1,bestPick.j+rad); jj++){
     const v = jj/(n-1);
-    const y = v*2-1;
     for(let ii=Math.max(0,bestPick.i-rad); ii<=Math.min(n-1,bestPick.i+rad); ii++){
       const u = ii/(n-1);
-      const x = u*2-1;
 
       const e = h[jj*n+ii];
       const t = (e-min)/range;
       const z = (t*2-1)*1.35;
+
+      const x = u*2-1;
+      const y = v*2-1;
 
       const p = isoProject(x,y,z);
       const sx = cx + p.x*scale;
@@ -984,7 +1005,6 @@ function pickUV3D(ev){
 function drawOverlay(){
   const view3D = parseInt(elViewMode.value,10)===1;
 
-  // trail glow
   ctx.save();
   ctx.globalAlpha = 0.9;
   ctx.lineWidth = 2.2*dpr;
@@ -1017,10 +1037,10 @@ function drawOverlay(){
     ctx.restore();
   }
 
-  dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");       // start
-  dot(best.u,  best.v,  6.8*dpr, "rgba(52,211,153,.95)");        // best found (local)
-  dot(posVis.u,posVis.v,6.8*dpr, "rgba(125,211,252,.98)");        // current
-  dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)"); // global min (approx)
+  dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");
+  dot(best.u,  best.v,  6.8*dpr, "rgba(52,211,153,.95)");
+  dot(posVis.u,posVis.v,6.8*dpr, "rgba(125,211,252,.98)");
+  dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)");
 }
 
 /* ---------- sparkline ---------- */
@@ -1067,51 +1087,91 @@ function renderScene(){
   }
 
   const view3D = parseInt(elViewMode.value,10)===1;
-  if (view3D){
-    render3D();
-  } else {
-    ctx.putImageData(cached2D, 0, 0);
-  }
+  if (view3D) render3D();
+  else ctx.putImageData(cached2D, 0, 0);
 
   drawOverlay();
   drawSpark();
 }
 
-/* ---------- GD step (with auto-stop) ---------- */
+/* ---------- Optimizer step: GD or SA ---------- */
 function stepOnce(){
   prevPos = {...pos};
+
+  const mode = parseInt(elMode.value,10); // 0=GD, 1=SA
   const micro = 3;
 
+  // SA constants (no extra UI, intentionally)
+  const SA_STEP = 0.055;     // proposal radius (in uv)
+  const SA_COOL = 0.9975;    // cooling per step
+
   for(let m=0;m<micro;m++){
-    const lr = parseFloat(elLR.value) / micro;
+    if (mode === 0){
+      const lr = parseFloat(elLR.value) / micro;
 
-    const eBefore = land.energy(pos.u,pos.v);
-    const g = land.grad(pos.u,pos.v);
-    const gnorm = Math.hypot(g.du,g.dv);
+      const eBefore = land.energy(pos.u,pos.v);
+      const g = land.grad(pos.u,pos.v);
+      const gnorm = Math.hypot(g.du,g.dv);
 
-    const u0 = pos.u, v0 = pos.v;
+      const u0 = pos.u, v0 = pos.v;
 
-    pos.u = clamp01(pos.u - lr * g.du);
-    pos.v = clamp01(pos.v - lr * g.dv);
+      pos.u = clamp01(pos.u - lr * g.du);
+      pos.v = clamp01(pos.v - lr * g.dv);
 
-    const eAfter = land.energy(pos.u,pos.v);
-    if (eAfter < bestE){ bestE = eAfter; best = {...pos}; }
+      const eAfter = land.energy(pos.u,pos.v);
+      if (eAfter < bestE){ bestE = eAfter; best = {...pos}; }
 
-    const duv = Math.hypot(pos.u - u0, pos.v - v0);
-    const dE = eBefore - eAfter;
+      const duv = Math.hypot(pos.u - u0, pos.v - v0);
+      const dE = eBefore - eAfter;
 
-    const tinyGrad = gnorm < STOP_GRAD;
-    const tinyMove = duv < STOP_DUV;
-    const tinyImprove = dE < STOP_DE;
+      const tinyGrad = gnorm < STOP_GRAD;
+      const tinyMove = duv < STOP_DUV;
+      const tinyImprove = dE < STOP_DE;
 
-    if (tinyGrad || (tinyMove && tinyImprove)) stagnant++;
-    else stagnant = 0;
+      if (tinyGrad || (tinyMove && tinyImprove)) stagnant++;
+      else stagnant = 0;
 
-    if (stagnant >= STOP_PATIENCE){
-      running = false;
-      stepBudget = 0;
-      startReplay();
-      break;
+      if (stagnant >= STOP_PATIENCE){
+        running = false;
+        stepBudget = 0;
+        startReplay();
+        break;
+      }
+    } else {
+      // Simulated Annealing (Metropolis)
+      const curE = land.energy(pos.u,pos.v);
+      const rng = mulberry32((seed ^ ((stepCount+1)*2654435761) ^ (m*9973))>>>0);
+
+      // random step in disk
+      const ang = rng()*Math.PI*2;
+      const rad = (SA_STEP/micro) * Math.sqrt(rng());
+      const pu = clamp01(pos.u + rad*Math.cos(ang));
+      const pv = clamp01(pos.v + rad*Math.sin(ang));
+
+      const newE = land.energy(pu,pv);
+      const dE = newE - curE;
+
+      proposed++;
+      let accept = false;
+      if (dE <= 0) accept = true;
+      else accept = (rng() < Math.exp(-dE / Math.max(1e-9, T)));
+
+      if (accept){
+        accepted++;
+        pos.u = pu; pos.v = pv;
+        if (newE < bestE){ bestE = newE; best = {...pos}; }
+      }
+
+      // cool temperature gently
+      T *= Math.pow(SA_COOL, 1/micro);
+
+      // stop if temperature is basically zero
+      if (T < 0.0015){
+        running = false;
+        stepBudget = 0;
+        startReplay();
+        break;
+      }
     }
   }
 
@@ -1140,7 +1200,6 @@ function cameraFollowUV(u,v,strength=0.10){
   cam.panX += dx*strength;
   cam.panY += dy*strength;
 }
-
 function startReplay(){
   if (trail.length < 2) return;
   replaying = true;
@@ -1158,8 +1217,6 @@ function canvasToUV2D(ev){
   const y = (ev.clientY - r.top) / r.height;
   return {u: clamp01(x), v: clamp01(y)};
 }
-
-// stop browser context menu so RMB pan works
 view.addEventListener('contextmenu', (e)=> e.preventDefault());
 
 let movedWhileDown = false;
@@ -1176,7 +1233,6 @@ view.addEventListener('pointermove', (e)=>{
   if (Math.hypot(dx,dy) > 6) movedWhileDown = true;
 });
 
-// click to set start (2D: direct; 3D: pick on terrain)
 view.addEventListener('click', (ev)=>{
   if (parseInt(elViewMode.value,10) === 1 && movedWhileDown) return;
 
@@ -1193,10 +1249,9 @@ view.addEventListener('click', (ev)=>{
   resetPath(true);
 });
 
-// --- Mouse controls for 3D view (keep!) ---
+// --- 3D camera controls (keep) ---
 view.addEventListener('pointerdown', (e)=>{
   if (parseInt(elViewMode.value,10) !== 1) return;
-
   cam.dragging = true;
   cam.lastX = e.clientX;
   cam.lastY = e.clientY;
@@ -1223,9 +1278,7 @@ view.addEventListener('pointermove', (e)=>{
   }
 });
 
-view.addEventListener('pointerup', ()=>{
-  cam.dragging = false;
-});
+view.addEventListener('pointerup', ()=>{ cam.dragging = false; });
 
 view.addEventListener('wheel', (e)=>{
   if (parseInt(elViewMode.value,10) !== 1) return;
@@ -1240,17 +1293,37 @@ document.addEventListener('keydown', (e)=>{
   if (e.key.toLowerCase() === 'r'){ resetPath(false); }
 });
 
-/* ---------- labels ---------- */
+/* ---------- labels + SA UI toggles ---------- */
+function setModeUI(){
+  const sa = parseInt(elMode.value,10) === 1;
+  panelBox.classList.toggle('saMode', sa);
+  hudBox.classList.toggle('sa', sa);
+}
+
 function updateLabels(){
-  vView.textContent = (parseInt(elViewMode.value,10)===0) ? "2D" : "3D";
+  const view3D = parseInt(elViewMode.value,10)===1;
+  const sa = parseInt(elMode.value,10)===1;
+
+  vView.textContent = view3D ? "3D" : "2D";
   vSmooth.textContent = (+elSmooth.value).toFixed(2);
+  vMode.textContent = sa ? "SA" : "GD";
   vLR.textContent = (+elLR.value).toFixed(3);
+  vTemp.textContent = (+elTemp.value).toFixed(3);
   vSPS.textContent = elSPS.value;
 
   hudView.textContent = vView.textContent;
-  hudLR.textContent = (+elLR.value).toFixed(3);
+  hudMode.textContent = vMode.textContent;
+  hudLR.textContent = sa ? "—" : (+elLR.value).toFixed(3);
   hudStep.textContent = String(stepCount);
   hudF.textContent = land.energy(posVis.u,posVis.v).toFixed(4);
+
+  if (sa){
+    hudT.textContent = T.toFixed(3);
+    hudAcc.textContent = `${accepted}/${Math.max(1,proposed)}`;
+  } else {
+    hudT.textContent = "—";
+    hudAcc.textContent = "—";
+  }
 }
 
 /* ---------- controls ---------- */
@@ -1268,8 +1341,29 @@ elViewMode.addEventListener('input', ()=>{
   needsRerender = true;
 });
 
+elMode.addEventListener('input', ()=>{
+  setModeUI();
+  // keep the same path but reset counters so the demo is clean when you switch
+  running = false;
+  stopReplay();
+  resetPath(true);
+});
+
 elLR.addEventListener('input', updateLabels);
 elSPS.addEventListener('input', updateLabels);
+
+elTemp.addEventListener('input', ()=>{
+  // temperature slider sets the STARTING temperature (and also current if you haven't started yet)
+  if (stepCount === 0) T = parseFloat(elTemp.value);
+  updateLabels();
+});
+elTemp.addEventListener('change', ()=>{
+  // on change, reset so the effect is obvious
+  T = parseFloat(elTemp.value);
+  running = false;
+  stopReplay();
+  resetPath(true);
+});
 
 /* ---------- buttons ---------- */
 btnNewSeed.addEventListener('click', ()=>{
@@ -1312,7 +1406,6 @@ function tick(now = performance.now()){
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  // run GD
   const stepsPerSecond = parseInt(elSPS.value, 10);
   if (running){
     stepBudget += stepsPerSecond * dt;
@@ -1322,7 +1415,6 @@ function tick(now = performance.now()){
     while (steps-- > 0) stepOnce();
   }
 
-  // replay (cinematic follow + zoom)
   if (replaying && replayPath.length >= 2){
     replayT += dt;
     const alpha = Math.min(1, replayT * REPLAY_SPEED);
@@ -1345,7 +1437,6 @@ function tick(now = performance.now()){
 
     if (alpha >= 1) replaying = false;
   } else {
-    // smooth “ball rolling” when running/paused
     const follow = 1 - Math.exp(-dt * 18);
     posVis.u += (pos.u - posVis.u) * follow;
     posVis.v += (pos.v - posVis.v) * follow;
@@ -1360,6 +1451,7 @@ function tick(now = performance.now()){
 resize();
 initAllSliders();
 setFromControls();
+setModeUI();
 updateLabels();
 resetPath(true);
 tick();
