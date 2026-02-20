@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Local vs Global Optima · Smoothness Demo (GD)</title>
+  <title>GD · Smoothness · Local vs Global (fBM 2D/3D)</title>
   <style>
     :root{
       --bg:#0b1020;
@@ -19,6 +19,7 @@
       --sliderGlow: rgba(125,211,252,.35);
       --sliderThumbEdge: rgba(125,211,252,.55);
     }
+
     html,body{height:100%}
     body{
       margin:0;
@@ -27,14 +28,16 @@
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
       letter-spacing:.2px;
     }
+
     .wrap{
       display:grid;
-      grid-template-columns: 1.4fr .6fr;
+      grid-template-columns: 1.35fr .65fr;
       gap:14px;
       padding:14px;
       box-sizing:border-box;
       height:100%;
     }
+
     .card{
       background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
       border:1px solid rgba(125, 211, 252, .14);
@@ -42,11 +45,13 @@
       box-shadow: 0 18px 40px rgba(0,0,0,.35);
       overflow:hidden;
     }
+
     .main{
       display:grid;
       grid-template-rows: auto 1fr auto;
       min-height:0;
     }
+
     .hdr{
       padding:14px 16px;
       display:flex;
@@ -56,6 +61,7 @@
       border-bottom:1px solid rgba(125,211,252,.12);
       background:linear-gradient(180deg, rgba(10,20,45,.85), rgba(10,20,45,.35));
     }
+
     .title{
       font-size:14px;
       font-weight:650;
@@ -64,22 +70,25 @@
       color:#cfe3ff;
       opacity:.95;
     }
+
     .sub{
       font-size:12px;
       color:var(--muted);
       opacity:.95;
       white-space:nowrap;
     }
+
     .canvasWrap{
       position:relative;
       min-height:0;
       background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.4));
     }
+
     canvas{
       display:block;
       width:100%;
       height:100%;
-      touch-action:none;
+      touch-action:none; /* prevents browser gestures */
     }
 
     .hint{
@@ -93,15 +102,6 @@
       border-radius:12px;
       backdrop-filter: blur(6px);
     }
-    .kbd{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size:11px;
-      padding:2px 6px;
-      border-radius:8px;
-      border:1px solid rgba(125,211,252,.18);
-      background:rgba(8,14,28,.55);
-      color:rgba(231,240,255,.92);
-    }
 
     .hud{
       position:absolute;
@@ -113,66 +113,48 @@
       padding:10px 10px;
       border-radius:12px;
       backdrop-filter: blur(6px);
-      min-width:210px;
+      min-width:240px;
     }
-    .hud .row{ display:flex; justify-content:space-between; gap:10px; margin:4px 0; }
+    .hud .row{ display:flex; justify-content:space-between; gap:8px; margin:4px 0; }
     .hud .k{color:rgba(136,160,214,.95)}
     .hud .v{font-variant-numeric: tabular-nums; color:#e7f0ff}
-
-    .footer{
-      padding:10px 14px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      border-top:1px solid rgba(125,211,252,.12);
-      background:linear-gradient(180deg, rgba(10,20,45,.25), rgba(10,20,45,.55));
-      gap:12px;
-    }
-    .legend{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      font-size:12px;
-      color:rgba(215,227,255,.9);
-    }
-    .tag{display:flex; align-items:center; gap:8px}
-    .dot{width:10px; height:10px; border-radius:50%}
-    .dot.c{background:var(--accent)}
-    .dot.g{background:var(--good)}
-    .dot.b{background:var(--bad)}
-    .dot.p{background:var(--purple)}
 
     .panel{
       display:grid;
       grid-template-rows: auto 1fr;
       min-height:0;
     }
+
     .mini{
+      display:grid;
+      gap:10px;
       padding:12px 14px 14px;
       overflow:auto;
       min-height:0;
-      display:grid;
-      gap:12px;
     }
+
     .group{
       background:rgba(8,14,28,.55);
       border:1px solid rgba(125,211,252,.12);
       border-radius:14px;
-      padding:12px 12px 10px;
+      padding:10px 10px 8px;
     }
+
     .groupTitle{
       font-size:12px;
       color:rgba(207,227,255,.9);
       letter-spacing:.08em;
       text-transform:uppercase;
-      margin:0 0 10px 0;
+      margin:0 0 8px 0;
     }
+
     .rowCtrl{
       display:grid;
       grid-template-columns: 1fr;
       gap:8px;
       margin:10px 0;
     }
+
     label{
       font-size:12px;
       color:rgba(215,227,255,.92);
@@ -180,6 +162,7 @@
       justify-content:space-between;
       gap:10px;
     }
+
     .val{
       color:rgba(136,160,214,.95);
       font-variant-numeric: tabular-nums;
@@ -195,6 +178,7 @@
       cursor: pointer;
       --p: 50%;
     }
+
     .rowCtrl input[type="range"]::-webkit-slider-runnable-track{
       height: 6px;
       border-radius: 999px;
@@ -216,7 +200,36 @@
         0 0 18px rgba(125,211,252,.35);
     }
 
-    .btns{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+    .rowCtrl input[type="range"]::-moz-range-track{
+      height: 6px;
+      border-radius: 999px;
+      background: var(--sliderTrack);
+      box-shadow: 0 0 0 1px rgba(125,211,252,.18) inset, 0 0 14px var(--sliderGlow);
+    }
+    .rowCtrl input[type="range"]::-moz-range-progress{
+      height: 6px;
+      border-radius: 999px;
+      background: var(--sliderFill);
+    }
+    .rowCtrl input[type="range"]::-moz-range-thumb{
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 35%, #ffffff, rgba(231,240,255,.92));
+      border: 1px solid var(--sliderThumbEdge);
+      box-shadow:
+        0 0 0 5px rgba(125,211,252,.10),
+        0 10px 22px rgba(0,0,0,.45),
+        0 0 18px rgba(125,211,252,.35);
+    }
+
+    .btns{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:8px;
+    }
+
     button{
       background:linear-gradient(180deg, rgba(125,211,252,.22), rgba(125,211,252,.10));
       color:rgba(231,240,255,.95);
@@ -236,6 +249,40 @@
       border-color:rgba(136,160,214,.22);
     }
 
+    .footer{
+      padding:10px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-top:1px solid rgba(125,211,252,.12);
+      background:linear-gradient(180deg, rgba(10,20,45,.25), rgba(10,20,45,.55));
+      gap:12px;
+    }
+
+    .legend{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      font-size:12px;
+      color:rgba(215,227,255,.9);
+    }
+    .tag{display:flex; align-items:center; gap:8px}
+    .dot{width:10px; height:10px; border-radius:50%}
+    .dot.g{background:var(--good)}
+    .dot.b{background:var(--bad)}
+    .dot.c{background:var(--accent)}
+    .dot.p{background:var(--purple)}
+
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:11px;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid rgba(125,211,252,.18);
+      background:rgba(8,14,28,.55);
+      color:rgba(231,240,255,.92);
+    }
+
     .note{
       font-size:12px;
       color:rgba(136,160,214,.95);
@@ -248,51 +295,64 @@
   <div class="wrap">
     <section class="card main">
       <div class="hdr">
-        <div class="title">Smoothness → Local vs Global Optima (GD)</div>
-        <div class="sub">Click to set start · Run GD · Compare to global min</div>
+        <div class="title">fBM Landscape · Gradient Descent · Local vs Global</div>
+        <div class="sub">Click = set start · Space = run/pause · R = reset</div>
       </div>
 
       <div class="canvasWrap">
         <canvas id="view"></canvas>
 
         <div class="hud">
-          <div class="row"><span class="k">Smoothness</span><span class="v" id="hudSmooth">—</span></div>
-          <div class="row"><span class="k">Octaves</span><span class="v" id="hudOct">—</span></div>
-          <div class="row"><span class="k">Scale</span><span class="v" id="hudScale">—</span></div>
-          <div class="row"><span class="k">Step</span><span class="v" id="hudStep">—</span></div>
+          <div class="row"><span class="k">View</span><span class="v" id="hudView">—</span></div>
+          <div class="row"><span class="k">Mode</span><span class="v" id="hudMode">GD</span></div>
           <div class="row"><span class="k">f(x,y)</span><span class="v" id="hudF">—</span></div>
+          <div class="row"><span class="k">Step</span><span class="v" id="hudStep">—</span></div>
+          <div class="row"><span class="k">LR</span><span class="v" id="hudLR">—</span></div>
         </div>
 
         <div class="hint">
-          <span class="kbd">Click</span> set start · <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset
+          <div>
+            <span class="kbd">Click</span> set start · <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset
+          </div>
         </div>
       </div>
 
       <div class="footer">
         <div class="legend">
-          <div class="tag"><span class="dot b"></span>Start</div>
           <div class="tag"><span class="dot c"></span>Current</div>
-          <div class="tag"><span class="dot g"></span>Best found</div>
+          <div class="tag"><span class="dot g"></span>Best found (local)</div>
+          <div class="tag"><span class="dot b"></span>Start</div>
           <div class="tag"><span class="dot p"></span>Global min (approx)</div>
         </div>
-        <div class="note">Goal: show how rough landscapes create many local minima.</div>
+        <canvas id="spark" width="220" height="44"
+          style="border-radius:10px; border:1px solid rgba(125,211,252,.12); background:rgba(8,14,28,.55)"></canvas>
       </div>
     </section>
 
     <aside class="card panel">
       <div class="hdr">
         <div class="title">Controls</div>
-        <div class="sub">Only what matters</div>
+        <div class="sub">Only what we need</div>
       </div>
 
       <div class="mini">
+        <div class="group">
+          <div class="groupTitle">View</div>
+          <div class="rowCtrl">
+            <label>View (0=2D, 1=3D) <span class="val" id="vView">—</span></label>
+            <input id="viewMode" type="range" min="0" max="1" step="1" value="1" />
+          </div>
+          <div class="note">
+            3D helps show “traps” (local minima) visually.
+          </div>
+        </div>
+
         <div class="group">
           <div class="groupTitle">Landscape</div>
 
           <div class="rowCtrl">
             <label>Smoothness <span class="val" id="vSmooth">—</span></label>
-            <!-- 0 = very rough, 1 = very smooth -->
-            <input id="smooth" type="range" min="0" max="1" step="0.01" value="0.45" />
+            <input id="smooth" type="range" min="0" max="1" step="0.01" value="0.45"/>
           </div>
 
           <div class="btns">
@@ -300,26 +360,35 @@
           </div>
 
           <div class="note">
-            Lower smoothness → more bumps → more local minima (traps).
+            Smoothness ↓ → rough terrain → lots of little valleys (more local minima).
+            <br/>
+            Smoothness ↑ → smoother terrain → fewer traps.
           </div>
         </div>
 
         <div class="group">
-          <div class="groupTitle">Optimizer (GD)</div>
+          <div class="groupTitle">Optimizer (Gradient Descent)</div>
 
           <div class="rowCtrl">
             <label>Learning rate <span class="val" id="vLR">—</span></label>
-            <input id="lr" type="range" min="0.002" max="0.06" step="0.001" value="0.02"/>
+            <input id="lr" type="range" min="0.001" max="0.08" step="0.001" value="0.02"/>
+          </div>
+
+          <div class="rowCtrl">
+            <label>Steps / second <span class="val" id="vSPS">—</span></label>
+            <input id="sps" type="range" min="1" max="140" step="1" value="35"/>
           </div>
 
           <div class="btns">
             <button id="toggle">Run / Pause</button>
             <button class="secondary" id="stepOne">Step</button>
             <button class="secondary" id="reset">Reset path</button>
+            <button class="secondary" id="replayBtn">Replay (slow)</button>
           </div>
 
           <div class="note">
-            Click different starts and see GD fall into different valleys (locals), compared to the purple global min (approx).
+            Click different starting points to show different <b>local optima</b>.
+            Purple dot is the <b>global minimum (approx)</b> from a grid scan.
           </div>
         </div>
       </div>
@@ -327,19 +396,6 @@
   </div>
 
 <script>
-/* ---------- slider fill (pretty) ---------- */
-function setSliderPercent(el){
-  const min = parseFloat(el.min);
-  const max = parseFloat(el.max);
-  const val = parseFloat(el.value);
-  const p = ((val - min) / (max - min)) * 100;
-  el.style.setProperty('--p', p.toFixed(2) + '%');
-}
-document.querySelectorAll('input[type="range"]').forEach(el=>{
-  setSliderPercent(el);
-  el.addEventListener('input', ()=>setSliderPercent(el));
-});
-
 /* ---------- seeded rng ---------- */
 function mulberry32(seed){
   let t = seed >>> 0;
@@ -347,7 +403,7 @@ function mulberry32(seed){
     t += 0x6D2B79F5;
     let x = Math.imul(t ^ (t >>> 15), 1 | t);
     x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-    return ((x ^ (t >>> 14)) >>> 0) / 4294967296;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -398,7 +454,6 @@ function makeLandscape(seed){
   const params = {
     octaves: 6,
     baseScale: 1.6,
-    // fixed (keep simple)
     persistence: 0.55,
     lacunarity: 2.0
   };
@@ -420,9 +475,11 @@ function makeLandscape(seed){
   function energy(u,v){
     const x = (u*2-1), y = (v*2-1);
     const r2 = x*x + y*y;
+
     const n = fbm(u*6.0, v*6.0);
     const ridge = Math.abs(fbm(u*3.2+10.1, v*3.2-7.3));
     const bowl = 0.15 * r2;
+
     return 0.85*n + 0.55*ridge + bowl;
   }
 
@@ -442,31 +499,56 @@ function makeLandscape(seed){
 
 /* ---------- helpers ---------- */
 function clamp01(x){ return Math.min(1, Math.max(0, x)); }
-function lerp(a,b,t){ return a + (b-a)*t; }
+function smoothstep(t){ t = Math.max(0, Math.min(1, t)); return t*t*(3-2*t); }
+
+/* ---------- slider fill ---------- */
+function setSliderPercent(el){
+  const min = parseFloat(el.min);
+  const max = parseFloat(el.max);
+  const val = parseFloat(el.value);
+  const p = ((val - min) / (max - min)) * 100;
+  el.style.setProperty('--p', p.toFixed(2) + '%');
+}
+function initAllSliders(){
+  document.querySelectorAll('.rowCtrl input[type="range"]').forEach(el=>{
+    setSliderPercent(el);
+    el.addEventListener('input', ()=>setSliderPercent(el));
+    el.addEventListener('change', ()=>setSliderPercent(el));
+  });
+}
 
 /* ---------- DOM refs ---------- */
 const view = document.getElementById('view');
+const spark = document.getElementById('spark');
 const ctx = view.getContext('2d');
+const sctx = spark.getContext('2d', { alpha:true });
+
+const elViewMode = document.getElementById('viewMode');
 
 const elSmooth = document.getElementById('smooth');
 const elLR = document.getElementById('lr');
+const elSPS = document.getElementById('sps');
 
+const vView = document.getElementById('vView');
 const vSmooth = document.getElementById('vSmooth');
 const vLR = document.getElementById('vLR');
+const vSPS = document.getElementById('vSPS');
 
-const hudSmooth = document.getElementById('hudSmooth');
-const hudOct = document.getElementById('hudOct');
-const hudScale = document.getElementById('hudScale');
-const hudStep = document.getElementById('hudStep');
+const hudView = document.getElementById('hudView');
 const hudF = document.getElementById('hudF');
+const hudStep = document.getElementById('hudStep');
+const hudLR = document.getElementById('hudLR');
 
 const btnNewSeed = document.getElementById('newSeed');
 const btnToggle = document.getElementById('toggle');
 const btnReset = document.getElementById('reset');
 const btnStepOne = document.getElementById('stepOne');
+const btnReplay = document.getElementById('replayBtn');
 
 /* ---------- canvas sizing ---------- */
 let W=0,H=0, dpr=1;
+let needsRerender = true;
+
 function resize(){
   dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   const r = view.getBoundingClientRect();
@@ -489,41 +571,63 @@ let start = {...pos};
 let best = {...pos};
 let bestE = Infinity;
 
+let posVis = {...pos};      // visual “rolling” position
+let prevPos = {...pos};     // last pos
+
 let globalMin = {u:0.5, v:0.5, e:Infinity};
 
 let stepCount = 0;
 let stagnant = 0;
 
-// simple convergence
-const STOP_PATIENCE = 35;
+// convergence thresholds (GD)
+const STOP_GRAD = 2e-3;
+const STOP_DE = 1e-6;
 const STOP_DUV = 5e-5;
-const STOP_DE  = 1e-6;
+const STOP_PATIENCE = 25;
 
 let trail = [];
 let energies = [];
 
-let needsRerender = true;
+// 2D cache
 let cached2D = null;
 
-// fixed grid sampling for global min (no control needed)
-const GLOBAL_GRID_N = 120;
+// 3D cache
+let grid = {n:90, h:null, min:0, max:1};
 
-/* ---------- smoothness mapping ---------- */
-/*
-  smooth = 0   => rough: many local minima
-  smooth = 1   => smooth: fewer local minima
+// camera (3D)
+let cam = {
+  yaw: -0.9,
+  pitch: 0.85,
+  zoom: 1.0,
+  panX: 0.0,
+  panY: 0.0,
+  dragging: false,
+  mode: "rotate",
+  lastX: 0,
+  lastY: 0
+};
 
-  We map:
-    octaves: 9 -> 2 (rough -> smooth)
-    scale:   1.0 -> 3.6 (rough -> smooth)
-*/
-function applySmoothness(){
-  const s = parseFloat(elSmooth.value); // 0..1
-  land.params.octaves = Math.round(lerp(9, 2, s));
-  land.params.baseScale = lerp(1.0, 3.6, s);
+// replay
+let replaying = false;
+let replayT = 0;
+let replayPath = [];
+const REPLAY_SPEED = 0.22;
+
+/* ---------- smoothness -> landscape params ---------- */
+function setFromControls(){
+  // smooth=0 -> rough (many local minima)
+  // smooth=1 -> smooth (few local minima)
+  const s = parseFloat(elSmooth.value);
+
+  land.params.octaves = Math.round(9 - 7*s);  // 9 -> 2
+  land.params.baseScale = 1.0 + 2.6*s;        // 1.0 -> 3.6
+
+  // fixed (no extra controls)
+  land.params.persistence = 0.55;
+  land.params.lacunarity  = 2.0;
 }
 
-/* ---------- reset path ---------- */
+/* ---------- reset ---------- */
 function resetPath(keepStart=false){
   stepCount = 0;
   stagnant = 0;
@@ -536,6 +640,9 @@ function resetPath(keepStart=false){
   trail = [{...pos}];
   energies = [bestE];
 
+  posVis = {...pos};
+  prevPos = {...pos};
+
   updateLabels();
 }
 
@@ -543,7 +650,7 @@ function resetPath(keepStart=false){
 function newLandscape(newSeed){
   seed = newSeed >>> 0;
   land = makeLandscape(seed);
-  applySmoothness();
+  setFromControls();
   needsRerender = true;
   resetPath(true);
 }
@@ -560,7 +667,7 @@ function ramp(t){
   return rgb;
 }
 
-/* ---------- build 2D image + global min ---------- */
+/* ---------- render 2D cached image ---------- */
 function render2D(){
   const img = ctx.createImageData(W,H);
   let min = Infinity, max = -Infinity;
@@ -604,29 +711,280 @@ function render2D(){
   }
 
   cached2D = img;
+}
 
-  // compute global min (approx) on a fixed grid
-  let bestE = Infinity;
-  let bestUV = {u:0.5, v:0.5};
-  for (let j=0;j<GLOBAL_GRID_N;j++){
-    const v = j/(GLOBAL_GRID_N-1);
-    for (let i=0;i<GLOBAL_GRID_N;i++){
-      const u = i/(GLOBAL_GRID_N-1);
+/* ---------- build 3D grid + approximate global min ---------- */
+function buildGrid(){
+  const n = 90; // fixed (no UI)
+  const h = new Float32Array(n*n);
+  let min=Infinity, max=-Infinity;
+
+  let idx=0;
+  for(let j=0;j<n;j++){
+    const v = j/(n-1);
+    for(let i=0;i<n;i++){
+      const u = i/(n-1);
       const e = land.energy(u,v);
-      if (e < bestE){
-        bestE = e;
-        bestUV = {u,v};
+      h[idx++] = e;
+      if(e<min) min=e;
+      if(e>max) max=e;
+    }
+  }
+
+  let bestIdx = 0;
+  let bestVal = Infinity;
+  for (let k=0;k<h.length;k++){
+    if (h[k] < bestVal){ bestVal = h[k]; bestIdx = k; }
+  }
+  const gi = bestIdx % n;
+  const gj = (bestIdx / n) | 0;
+  globalMin = { u: gi/(n-1), v: gj/(n-1), e: bestVal };
+
+  grid = {n, h, min, max};
+}
+
+/* ---------- 3D projection ---------- */
+function isoProject(x, y, z){
+  const cy = Math.cos(cam.yaw),  sy = Math.sin(cam.yaw);
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+
+  let xr = x*cy - y*sy;
+  let yr = x*sy + y*cy;
+  let zr = z;
+
+  let yr2 = yr*cp - zr*sp;
+  let zr2 = yr*sp + zr*cp;
+
+  return { x: xr, y: yr2, z: zr2 };
+}
+
+function render3D(){
+  const n = grid.n;
+  const h = grid.h;
+  const min = grid.min;
+  const max = grid.max;
+  const range = (max-min)||1;
+
+  const zEx = 1.35; // fixed (no UI)
+  const cx = W*0.5 + cam.panX*dpr;
+  const cy = H*0.52 + cam.panY*dpr;
+  const scale = Math.min(W,H) * 0.62 * cam.zoom;
+
+  // light direction
+  const L = {x:-0.45, y:-0.35, z:0.82};
+  const Ln = Math.hypot(L.x,L.y,L.z); L.x/=Ln; L.y/=Ln; L.z/=Ln;
+
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+
+  const haze = ctx.createRadialGradient(cx, cy*0.85, scale*0.2, cx, cy, scale*1.2);
+  haze.addColorStop(0, "rgba(125,211,252,.10)");
+  haze.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = haze;
+  ctx.fillRect(0,0,W,H);
+
+  function Z(i,j){
+    const e = h[j*n+i];
+    const t = (e - min)/range;
+    return (t*2 - 1);
+  }
+
+  for(let diag=0; diag<(n-1)+(n-1); diag++){
+    for(let j=Math.max(0, diag-(n-2)); j<=Math.min(n-2, diag); j++){
+      const i = diag - j;
+      if(i<0 || i>n-2) continue;
+
+      const x0 = (i/(n-1))*2 - 1;
+      const y0 = (j/(n-1))*2 - 1;
+      const x1 = ((i+1)/(n-1))*2 - 1;
+      const y1 = ((j+1)/(n-1))*2 - 1;
+
+      const z00 = Z(i,j)*zEx;
+      const z10 = Z(i+1,j)*zEx;
+      const z01 = Z(i,j+1)*zEx;
+      const z11 = Z(i+1,j+1)*zEx;
+
+      drawTri(x0,y0,z00, x1,y0,z10, x1,y1,z11);
+      drawTri(x0,y0,z00, x1,y1,z11, x0,y1,z01);
+    }
+  }
+
+  // subtle wire
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = "rgba(125,211,252,.8)";
+  ctx.lineWidth = 1*dpr;
+  const step = Math.max(3, Math.floor(n/18));
+  for(let j=0;j<n;j+=step){
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1))*2-1;
+      const y = (j/(n-1))*2-1;
+      const z = Z(i,j)*zEx;
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+  for(let i=0;i<n;i+=step){
+    ctx.beginPath();
+    for(let j=0;j<n;j++){
+      const x = (i/(n-1))*2-1;
+      const y = (j/(n-1))*2-1;
+      const z = Z(i,j)*zEx;
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+      if(j===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  function drawTri(ax,ay,az, bx,by,bz, cx0,cy0,cz0){
+    const A = isoProject(ax,ay,az);
+    const B = isoProject(bx,by,bz);
+    const C = isoProject(cx0,cy0,cz0);
+
+    const Ax = cx + A.x*scale, Ay = cy + A.y*scale;
+    const Bx = cx + B.x*scale, By = cy + B.y*scale;
+    const Cx = cx + C.x*scale, Cy = cy + C.y*scale;
+
+    const ux = bx-ax, uy = by-ay, uz = bz-az;
+    const vx = cx0-ax, vy = cy0-ay, vz = cz0-az;
+    let nx = uy*vz - uz*vy;
+    let ny = uz*vx - ux*vz;
+    let nz = ux*vy - uy*vx;
+    const nn = Math.hypot(nx,ny,nz) || 1;
+    nx/=nn; ny/=nn; nz/=nn;
+
+    const ndotl = Math.max(0.0, nx*L.x + ny*L.y + nz*L.z);
+
+    const zavg = (az+bz+cz0)/3;
+    const t = (zavg/(1.35) + 1)/2;
+    const base = ramp(Math.min(1,Math.max(0,t)));
+
+    const s = 0.42 + 0.75*ndotl;
+    const r = Math.min(255, base[0]*s);
+    const g = Math.min(255, base[1]*s);
+    const b = Math.min(255, base[2]*s);
+
+    ctx.beginPath();
+    ctx.moveTo(Ax,Ay);
+    ctx.lineTo(Bx,By);
+    ctx.lineTo(Cx,Cy);
+    ctx.closePath();
+    ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    ctx.fill();
+  }
+}
+
+/* ---------- mapping uv->screen ---------- */
+function uvToScreen2D(u,v){
+  return {x: u*(W-1), y: v*(H-1)};
+}
+
+function uvToScreen3D(u,v){
+  const x = u*2 - 1;
+  const y = v*2 - 1;
+
+  // height from grid sample (same surface as render3D)
+  const n = grid.n;
+  const i = Math.max(0, Math.min(n-1, Math.round(u*(n-1))));
+  const j = Math.max(0, Math.min(n-1, Math.round(v*(n-1))));
+  const e = grid.h[j*n + i];
+
+  const min = grid.min, max = grid.max;
+  const range = (max-min)||1;
+  const t = (e - min)/range;
+  const z = (t*2 - 1) * 1.35;
+
+  const cx = W*0.5 + cam.panX*dpr;
+  const cy = H*0.52 + cam.panY*dpr;
+  const scale = Math.min(W,H) * 0.62 * cam.zoom;
+
+  const p = isoProject(x,y,z);
+  return {x: cx + p.x*scale, y: cy + p.y*scale};
+}
+
+/* ---------- 3D pick: click on terrain ---------- */
+function pickUV3D(ev){
+  const r = view.getBoundingClientRect();
+  const mx = (ev.clientX - r.left) * dpr;
+  const my = (ev.clientY - r.top) * dpr;
+
+  const n = grid.n;
+  const h = grid.h;
+  const min = grid.min, max = grid.max;
+  const range = (max-min)||1;
+
+  const cx = W*0.5 + cam.panX*dpr;
+  const cy = H*0.52 + cam.panY*dpr;
+  const scale = Math.min(W,H) * 0.62 * cam.zoom;
+
+  let bestPick = {u:0.5, v:0.5, i:0, j:0};
+  let bestD2 = Infinity;
+
+  const step = Math.max(1, Math.floor(n/70));
+  for(let jj=0;jj<n;jj+=step){
+    const v = jj/(n-1);
+    const y = v*2-1;
+    for(let ii=0;ii<n;ii+=step){
+      const u = ii/(n-1);
+      const x = u*2-1;
+
+      const e = h[jj*n+ii];
+      const t = (e-min)/range;
+      const z = (t*2-1)*1.35;
+
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+
+      const dx = sx - mx, dy = sy - my;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD2){
+        bestD2 = d2;
+        bestPick = {u, v, i:ii, j:jj};
       }
     }
   }
-  globalMin = {u: bestUV.u, v: bestUV.v, e: bestE};
+
+  const rad = Math.max(2, step*2);
+  for(let jj=Math.max(0,bestPick.j-rad); jj<=Math.min(n-1,bestPick.j+rad); jj++){
+    const v = jj/(n-1);
+    const y = v*2-1;
+    for(let ii=Math.max(0,bestPick.i-rad); ii<=Math.min(n-1,bestPick.i+rad); ii++){
+      const u = ii/(n-1);
+      const x = u*2-1;
+
+      const e = h[jj*n+ii];
+      const t = (e-min)/range;
+      const z = (t*2-1)*1.35;
+
+      const p = isoProject(x,y,z);
+      const sx = cx + p.x*scale;
+      const sy = cy + p.y*scale;
+
+      const dx = sx - mx, dy = sy - my;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD2){
+        bestD2 = d2;
+        bestPick = {u, v};
+      }
+    }
+  }
+
+  return {u: clamp01(bestPick.u), v: clamp01(bestPick.v)};
 }
 
-/* ---------- overlay ---------- */
-function uvToScreen(u,v){ return {x: u*(W-1), y: v*(H-1)}; }
-
+/* ---------- draw overlay: trail + dots ---------- */
 function drawOverlay(){
-  // trail
+  const view3D = parseInt(elViewMode.value,10)===1;
+
+  // trail glow
   ctx.save();
   ctx.globalAlpha = 0.9;
   ctx.lineWidth = 2.2*dpr;
@@ -636,7 +994,7 @@ function drawOverlay(){
   ctx.beginPath();
   for(let i=0;i<trail.length;i++){
     const p = trail[i];
-    const s = uvToScreen(p.u,p.v);
+    const s = view3D ? uvToScreen3D(p.u,p.v) : uvToScreen2D(p.u,p.v);
     if(i===0) ctx.moveTo(s.x,s.y);
     else ctx.lineTo(s.x,s.y);
   }
@@ -644,7 +1002,7 @@ function drawOverlay(){
   ctx.restore();
 
   function dot(u,v,r,fill){
-    const s = uvToScreen(u,v);
+    const s = view3D ? uvToScreen3D(u,v) : uvToScreen2D(u,v);
     ctx.save();
     ctx.beginPath();
     ctx.arc(s.x,s.y,r,0,Math.PI*2);
@@ -660,114 +1018,291 @@ function drawOverlay(){
   }
 
   dot(start.u, start.v, 6.8*dpr, "rgba(251,113,133,.95)");       // start
-  dot(best.u,  best.v,  6.8*dpr, "rgba(52,211,153,.95)");        // best found
-  dot(pos.u,   pos.v,   6.8*dpr, "rgba(125,211,252,.98)");        // current
+  dot(best.u,  best.v,  6.8*dpr, "rgba(52,211,153,.95)");        // best found (local)
+  dot(posVis.u,posVis.v,6.8*dpr, "rgba(125,211,252,.98)");        // current
   dot(globalMin.u, globalMin.v, 6.8*dpr, "rgba(168,85,247,.95)"); // global min (approx)
 }
 
-/* ---------- render ---------- */
+/* ---------- sparkline ---------- */
+function drawSpark(){
+  const w = spark.width, h = spark.height;
+  sctx.clearRect(0,0,w,h);
+  if (energies.length < 2) return;
+
+  let min=Infinity, max=-Infinity;
+  for (const e of energies){ if(e<min)min=e; if(e>max)max=e; }
+  const range = (max-min)||1;
+
+  sctx.save();
+  sctx.globalAlpha = 0.35;
+  sctx.strokeStyle = "rgba(125,211,252,.22)";
+  sctx.lineWidth = 1;
+  for(let i=1;i<5;i++){
+    const y = i*h/5;
+    sctx.beginPath(); sctx.moveTo(0,y); sctx.lineTo(w,y); sctx.stroke();
+  }
+  sctx.restore();
+
+  sctx.save();
+  sctx.strokeStyle = "rgba(125,211,252,.95)";
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  for(let i=0;i<energies.length;i++){
+    const x = (i/(energies.length-1))*w;
+    const t = (energies[i]-min)/range;
+    const y = (1-t)*(h-6)+3;
+    if(i===0) sctx.moveTo(x,y);
+    else sctx.lineTo(x,y);
+  }
+  sctx.stroke();
+  sctx.restore();
+}
+
+/* ---------- render dispatcher ---------- */
 function renderScene(){
   if (needsRerender){
     render2D();
+    buildGrid();
     needsRerender = false;
   }
-  ctx.putImageData(cached2D, 0, 0);
-  drawOverlay();
-}
 
-/* ---------- GD step ---------- */
-function stepOnce(){
-  const lr = parseFloat(elLR.value);
-
-  const eBefore = land.energy(pos.u,pos.v);
-  const g = land.grad(pos.u,pos.v);
-
-  const u0 = pos.u, v0 = pos.v;
-
-  pos.u = clamp01(pos.u - lr * g.du);
-  pos.v = clamp01(pos.v - lr * g.dv);
-
-  const eAfter = land.energy(pos.u,pos.v);
-  if (eAfter < bestE){ bestE = eAfter; best = {...pos}; }
-
-  trail.push({...pos});
-  energies.push(eAfter);
-  stepCount++;
-
-  // simple stopping check (so it doesn't run forever)
-  const duv = Math.hypot(pos.u - u0, pos.v - v0);
-  const dE = eBefore - eAfter;
-  if (duv < STOP_DUV && dE < STOP_DE) stagnant++;
-  else stagnant = 0;
-
-  if (stagnant >= STOP_PATIENCE){
-    running = false;
+  const view3D = parseInt(elViewMode.value,10)===1;
+  if (view3D){
+    render3D();
+  } else {
+    ctx.putImageData(cached2D, 0, 0);
   }
 
-  if (trail.length > 2200) trail.splice(0, trail.length-2200);
+  drawOverlay();
+  drawSpark();
 }
 
+/* ---------- GD step (with auto-stop) ---------- */
+function stepOnce(){
+  prevPos = {...pos};
+  const micro = 3;
+
+  for(let m=0;m<micro;m++){
+    const lr = parseFloat(elLR.value) / micro;
+
+    const eBefore = land.energy(pos.u,pos.v);
+    const g = land.grad(pos.u,pos.v);
+    const gnorm = Math.hypot(g.du,g.dv);
+
+    const u0 = pos.u, v0 = pos.v;
+
+    pos.u = clamp01(pos.u - lr * g.du);
+    pos.v = clamp01(pos.v - lr * g.dv);
+
+    const eAfter = land.energy(pos.u,pos.v);
+    if (eAfter < bestE){ bestE = eAfter; best = {...pos}; }
+
+    const duv = Math.hypot(pos.u - u0, pos.v - v0);
+    const dE = eBefore - eAfter;
+
+    const tinyGrad = gnorm < STOP_GRAD;
+    const tinyMove = duv < STOP_DUV;
+    const tinyImprove = dE < STOP_DE;
+
+    if (tinyGrad || (tinyMove && tinyImprove)) stagnant++;
+    else stagnant = 0;
+
+    if (stagnant >= STOP_PATIENCE){
+      running = false;
+      stepBudget = 0;
+      startReplay();
+      break;
+    }
+  }
+
+  const eNow = land.energy(pos.u,pos.v);
+  trail.push({...pos});
+  energies.push(eNow);
+  stepCount++;
+
+  if (trail.length > 2200) trail.splice(0, trail.length-2200);
+  if (energies.length > 480) energies.splice(0, energies.length-480);
+}
+
+/* ---------- replay (cinematic) ---------- */
+function cameraZoomCurve(alpha){
+  const a = smoothstep(alpha);
+  const z0 = 0.85;
+  const z1 = 1.75;
+  return z0 + (z1 - z0) * a;
+}
+function cameraFollowUV(u,v,strength=0.10){
+  if (parseInt(elViewMode.value,10) !== 1) return;
+  const s = uvToScreen3D(u,v);
+  const tx = W*0.52, ty = H*0.52;
+  const dx = (tx - s.x)/dpr;
+  const dy = (ty - s.y)/dpr;
+  cam.panX += dx*strength;
+  cam.panY += dy*strength;
+}
+
+function startReplay(){
+  if (trail.length < 2) return;
+  replaying = true;
+  replayT = 0;
+  replayPath = trail.slice();
+  running = false;
+  stepBudget = 0;
+}
+function stopReplay(){ replaying = false; }
+
 /* ---------- interaction ---------- */
-function canvasToUV(ev){
+function canvasToUV2D(ev){
   const r = view.getBoundingClientRect();
   const x = (ev.clientX - r.left) / r.width;
   const y = (ev.clientY - r.top) / r.height;
   return {u: clamp01(x), v: clamp01(y)};
 }
 
+// stop browser context menu so RMB pan works
+view.addEventListener('contextmenu', (e)=> e.preventDefault());
+
+let movedWhileDown = false;
+let downX=0, downY=0;
+
+view.addEventListener('pointerdown', (e)=>{
+  movedWhileDown = false;
+  downX = e.clientX; downY = e.clientY;
+});
+
+view.addEventListener('pointermove', (e)=>{
+  const dx = e.clientX - downX;
+  const dy = e.clientY - downY;
+  if (Math.hypot(dx,dy) > 6) movedWhileDown = true;
+});
+
+// click to set start (2D: direct; 3D: pick on terrain)
 view.addEventListener('click', (ev)=>{
-  const uv = canvasToUV(ev);
+  if (parseInt(elViewMode.value,10) === 1 && movedWhileDown) return;
+
+  const is3D = parseInt(elViewMode.value,10) === 1;
+  const uv = is3D ? pickUV3D(ev) : canvasToUV2D(ev);
+
   pos = {u: uv.u, v: uv.v};
   start = {...pos};
+
   running = false;
+  stopReplay();
+  stepBudget = 0;
+
   resetPath(true);
 });
 
+// --- Mouse controls for 3D view (keep!) ---
+view.addEventListener('pointerdown', (e)=>{
+  if (parseInt(elViewMode.value,10) !== 1) return;
+
+  cam.dragging = true;
+  cam.lastX = e.clientX;
+  cam.lastY = e.clientY;
+  cam.mode = (e.shiftKey || e.button === 2) ? "pan" : "rotate";
+  view.setPointerCapture(e.pointerId);
+});
+
+view.addEventListener('pointermove', (e)=>{
+  if (!cam.dragging) return;
+  if (parseInt(elViewMode.value,10) !== 1) return;
+
+  const dx = e.clientX - cam.lastX;
+  const dy = e.clientY - cam.lastY;
+  cam.lastX = e.clientX;
+  cam.lastY = e.clientY;
+
+  if (cam.mode === "pan"){
+    cam.panX += dx * 1.0;
+    cam.panY += dy * 1.0;
+  } else {
+    cam.yaw   += dx * 0.006;
+    cam.pitch += dy * 0.006;
+    cam.pitch = Math.max(-0.2, Math.min(1.55, cam.pitch));
+  }
+});
+
+view.addEventListener('pointerup', ()=>{
+  cam.dragging = false;
+});
+
+view.addEventListener('wheel', (e)=>{
+  if (parseInt(elViewMode.value,10) !== 1) return;
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.0012);
+  cam.zoom *= factor;
+  cam.zoom = Math.max(0.55, Math.min(2.2, cam.zoom));
+}, { passive:false });
+
 document.addEventListener('keydown', (e)=>{
-  if (e.code === 'Space'){ e.preventDefault(); running = !running; }
+  if (e.code === 'Space'){ e.preventDefault(); running = !running; if(running) stopReplay(); }
   if (e.key.toLowerCase() === 'r'){ resetPath(false); }
 });
 
-/* ---------- UI labels ---------- */
+/* ---------- labels ---------- */
 function updateLabels(){
-  const s = parseFloat(elSmooth.value);
-  vSmooth.textContent = s.toFixed(2);
+  vView.textContent = (parseInt(elViewMode.value,10)===0) ? "2D" : "3D";
+  vSmooth.textContent = (+elSmooth.value).toFixed(2);
   vLR.textContent = (+elLR.value).toFixed(3);
+  vSPS.textContent = elSPS.value;
 
-  hudSmooth.textContent = s.toFixed(2);
-  hudOct.textContent = String(land.params.octaves);
-  hudScale.textContent = land.params.baseScale.toFixed(2);
+  hudView.textContent = vView.textContent;
+  hudLR.textContent = (+elLR.value).toFixed(3);
   hudStep.textContent = String(stepCount);
-  hudF.textContent = land.energy(pos.u,pos.v).toFixed(4);
+  hudF.textContent = land.energy(posVis.u,posVis.v).toFixed(4);
 }
 
-/* ---------- events ---------- */
-elSmooth.addEventListener('input', ()=>{
-  applySmoothness();
+/* ---------- controls ---------- */
+function onLandscapeChange(){
+  setFromControls();
   needsRerender = true;
-  resetPath(true); // same start, new surface => new behavior
+  resetPath(true);
+}
+
+elSmooth.addEventListener('input', onLandscapeChange);
+elSmooth.addEventListener('change', onLandscapeChange);
+
+elViewMode.addEventListener('input', ()=>{
+  updateLabels();
+  needsRerender = true;
 });
 
 elLR.addEventListener('input', updateLabels);
+elSPS.addEventListener('input', updateLabels);
 
+/* ---------- buttons ---------- */
 btnNewSeed.addEventListener('click', ()=>{
   const s = (Date.now() ^ ((Math.random()*1e9)|0) ^ seed) >>> 0;
   newLandscape(s);
 });
 
-btnToggle.addEventListener('click', ()=>{ running = !running; });
-
-btnReset.addEventListener('click', ()=>{
-  running = false;
-  resetPath(false);
-});
-
 btnStepOne.addEventListener('click', ()=>{
   running = false;
+  stopReplay();
   stepOnce();
   updateLabels();
   renderScene();
 });
+
+btnToggle.addEventListener('click', ()=>{
+  if (running){
+    running = false;
+    stepBudget = 0;
+    startReplay();
+  } else {
+    stopReplay();
+    running = true;
+  }
+});
+
+btnReset.addEventListener('click', ()=>{
+  running = false;
+  stopReplay();
+  resetPath(false);
+});
+
+btnReplay.addEventListener('click', startReplay);
 
 /* ---------- loop ---------- */
 let lastTime = performance.now();
@@ -777,14 +1312,43 @@ function tick(now = performance.now()){
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  // fixed speed (simple!)
-  const stepsPerSecond = 40;
+  // run GD
+  const stepsPerSecond = parseInt(elSPS.value, 10);
   if (running){
     stepBudget += stepsPerSecond * dt;
-    const maxStepsThisFrame = 10;
+    const maxStepsThisFrame = 12;
     let steps = Math.min(maxStepsThisFrame, Math.floor(stepBudget));
     stepBudget -= steps;
-    while (steps-- > 0 && running) stepOnce();
+    while (steps-- > 0) stepOnce();
+  }
+
+  // replay (cinematic follow + zoom)
+  if (replaying && replayPath.length >= 2){
+    replayT += dt;
+    const alpha = Math.min(1, replayT * REPLAY_SPEED);
+
+    const f = alpha * (replayPath.length - 1);
+    const i0 = Math.floor(f);
+    const i1 = Math.min(replayPath.length - 1, i0 + 1);
+    const t = f - i0;
+
+    const p0 = replayPath[i0], p1 = replayPath[i1];
+    const uu = p0.u + (p1.u - p0.u) * t;
+    const vv = p0.v + (p1.v - p0.v) * t;
+
+    posVis.u = uu;
+    posVis.v = vv;
+
+    const zTarget = cameraZoomCurve(alpha);
+    cam.zoom += (zTarget - cam.zoom) * 0.08;
+    cameraFollowUV(uu, vv, 0.10);
+
+    if (alpha >= 1) replaying = false;
+  } else {
+    // smooth “ball rolling” when running/paused
+    const follow = 1 - Math.exp(-dt * 18);
+    posVis.u += (pos.u - posVis.u) * follow;
+    posVis.v += (pos.v - posVis.v) * follow;
   }
 
   updateLabels();
@@ -794,9 +1358,10 @@ function tick(now = performance.now()){
 
 /* ---------- init ---------- */
 resize();
-applySmoothness();
+initAllSliders();
+setFromControls();
+updateLabels();
 resetPath(true);
-needsRerender = true;
 tick();
 </script>
 </body>
